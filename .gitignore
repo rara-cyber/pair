@@ -1,0 +1,9 @@
+node_modules
+dist
+.env*.local
+
+# Financial data - never commit
+account-statements/
+data/
+*.db
+*.pdf
