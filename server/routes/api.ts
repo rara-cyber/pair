@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync } from "fs
 import multer from "multer";
 import { parseAllCsvs } from "../services/csvParser";
 import { indexAllPdfs } from "../services/pdfIndexer";
-import { aiMatchTransactions } from "../services/aiMatcher";
+import { aiMatchTransactions, getModel, setModel, AVAILABLE_MODELS } from "../services/aiMatcher";
 import { deleteMatch, loadAllMatches, saveMatch } from "../services/db";
 import { progressEmitter, currentProgress, emitMatch } from "../services/progress";
 import { extractPdfData } from "../services/pdfExtractor";
@@ -65,6 +65,18 @@ router.get("/progress", (req: Request, res: Response) => {
     progressEmitter.off("update", sendProgress);
     progressEmitter.off("match", sendMatch);
   });
+});
+
+router.get("/model", (_req: Request, res: Response) => {
+  res.json({ current: getModel(), available: AVAILABLE_MODELS });
+});
+
+router.post("/model", (req: Request, res: Response) => {
+  const { model } = req.body as { model: string };
+  const valid = AVAILABLE_MODELS.find((m) => m.id === model);
+  if (!valid) { res.status(400).json({ error: "Unknown model" }); return; }
+  setModel(model as ReturnType<typeof getModel>);
+  res.json({ current: getModel() });
 });
 
 router.get("/transactions", async (req: Request, res: Response) => {

@@ -9,7 +9,20 @@ import {
 } from "./db";
 import { initProgress, updateProgress, finishProgress, emitMatch } from "./progress";
 
-const MODEL = "google/gemini-2.5-flash";
+const MODELS = [
+  { id: "google/gemini-2.5-flash",          label: "Gemini 2.5 Flash (default)" },
+  { id: "google/gemini-2.0-flash-lite",      label: "Gemini 2.0 Flash Lite" },
+  { id: "openai/gpt-4o-mini",               label: "GPT-4o Mini" },
+  { id: "anthropic/claude-3-haiku",         label: "Claude 3 Haiku" },
+  { id: "meta-llama/llama-3.3-70b-instruct", label: "Llama 3.3 70B" },
+] as const;
+
+export type ModelId = typeof MODELS[number]["id"];
+export const AVAILABLE_MODELS = MODELS;
+
+let currentModel: ModelId = "google/gemini-2.5-flash";
+export function getModel(): ModelId { return currentModel; }
+export function setModel(id: ModelId): void { currentModel = id; }
 
 let sessionApiCalls = 0;
 
@@ -21,7 +34,7 @@ async function callLlm(prompt: string, maxTokens = 64): Promise<string> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: MODEL,
+      model: getModel(),
       max_tokens: maxTokens,
       messages: [{ role: "user", content: prompt }],
     }),
