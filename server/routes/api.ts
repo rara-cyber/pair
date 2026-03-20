@@ -1,10 +1,10 @@
 import { Router, type Request, type Response } from "express";
-import { join } from "path";
-import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync } from "fs";
+import { join, basename } from "path";
+import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync, statSync } from "fs";
 import multer from "multer";
 import { parseAllCsvs } from "../services/csvParser";
 import { indexAllPdfs } from "../services/pdfIndexer";
-import { aiMatchTransactions } from "../services/aiMatcher";
+import { aiMatchTransactions, getModel, setModel, AVAILABLE_MODELS } from "../services/aiMatcher";
 import { deleteMatch, loadAllMatches, saveMatch } from "../services/db";
 import { progressEmitter, currentProgress, emitMatch } from "../services/progress";
 import { extractPdfData } from "../services/pdfExtractor";
@@ -67,6 +67,18 @@ router.get("/progress", (req: Request, res: Response) => {
   });
 });
 
+router.get("/model", (_req: Request, res: Response) => {
+  res.json({ current: getModel(), available: AVAILABLE_MODELS });
+});
+
+router.post("/model", (req: Request, res: Response) => {
+  const { model } = req.body as { model: string };
+  const valid = AVAILABLE_MODELS.find((m) => m.id === model);
+  if (!valid) { res.status(400).json({ error: "Unknown model" }); return; }
+  setModel(model as ReturnType<typeof getModel>);
+  res.json({ current: getModel() });
+});
+
 router.get("/transactions", async (req: Request, res: Response) => {
   const rematch = req.query.rematch === "true";
   // Always check for new dump files unless a load is already in progress
@@ -84,10 +96,11 @@ router.post("/match-pdf", upload.single("file"), (req: Request, res: Response) =
   }
   const dumpDir = join(DATA_DIR, "document-dump");
   mkdirSync(dumpDir, { recursive: true });
-  writeFileSync(join(dumpDir, req.file.originalname), req.file.buffer);
+  const safeFilename = basename(req.file.originalname);
+  writeFileSync(join(dumpDir, safeFilename), req.file.buffer);
 
   // If this file was previously marked unmatched, clear it so the matcher retries it
-  const unmatchedPath = join(DATA_DIR, "document-unmatched", req.file.originalname);
+  const unmatchedPath = join(DATA_DIR, "document-unmatched", safeFilename);
   if (existsSync(unmatchedPath)) unlinkSync(unmatchedPath);
 
   // Trigger matching pipeline; if already running, queue a new run after it finishes
@@ -157,7 +170,8 @@ router.get("/pdf/documents/:year/:month/:type/:filename", (req: Request, res: Re
   }
 
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+  const safeForHeader1 = filename.replace(/["\r\n\\]/g, "_");
+  res.setHeader("Content-Disposition", `inline; filename="${safeForHeader1}"`);
   res.sendFile(filePath);
 });
 
@@ -174,7 +188,8 @@ router.get("/pdf/unmatched/:filename", (req: Request, res: Response) => {
     return;
   }
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+  const safeForHeader2 = filename.replace(/["\r\n\\]/g, "_");
+  res.setHeader("Content-Disposition", `inline; filename="${safeForHeader2}"`);
   res.sendFile(filePath);
 });
 
@@ -185,7 +200,11 @@ router.get("/unmatched-pdfs", async (req: Request, res: Response) => {
     res.json({ pdfs: [] });
     return;
   }
-  const files = readdirSync(unmatchedDir).filter((f) => f.toLowerCase().endsWith(".pdf"));
+  const files = readdirSync(unmatchedDir)
+    .filter((f) => f.toLowerCase().endsWith(".pdf"))
+    .map((f) => ({ name: f, mtime: statSync(join(unmatchedDir, f)).mtimeMs }))
+    .sort((a, b) => b.mtime - a.mtime) // newest first
+    .map((f) => f.name);
   const pdfs = await Promise.all(
     files.map(async (filename) => {
       const filePath = join(unmatchedDir, filename);

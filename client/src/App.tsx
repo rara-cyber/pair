@@ -1,28 +1,20 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTransactions } from "./hooks/useTransactions";
 import { useProgress, type MatchEvent } from "./hooks/useProgress";
+import { useFxRates, convertAmount, CURRENCY_SYMBOLS } from "./hooks/useFxRates";
 import { TransactionTable } from "./components/TransactionTable";
 import { FilterBar } from "./components/FilterBar";
+import { DateFilter } from "./components/DateFilter";
+import { CurrencyPicker } from "./components/CurrencyPicker";
 import { DropZone } from "./components/DropZone";
 import { ProgressBadge } from "./components/ProgressBadge";
+import { ModelPicker } from "./components/ModelPicker";
 import { ManualMatchModal } from "./components/ManualMatchModal";
 import type { Transaction, PdfLink } from "./types";
 
-function toEur(tx: Transaction): number {
-  if (tx.currency === "EUR") return tx.amount;
-  const rate = parseFloat(tx.exchangeRate);
-  if (!rate) return tx.amount;
-  if (tx.exchangeFrom === tx.currency && tx.exchangeTo === "EUR") return tx.amount * rate;
-  if (tx.exchangeFrom === "EUR" && tx.exchangeTo === tx.currency) return tx.amount / rate;
-  return tx.amount;
-}
 
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  EUR: "€", USD: "$", GBP: "£", CZK: "Kč", CHF: "Fr", JPY: "¥", CNY: "¥",
-};
-
-function fmtAmount(value: number, currency: string | null): string {
-  const sym = currency ? (CURRENCY_SYMBOLS[currency] ?? `${currency} `) : "€";
+function fmtAmount(value: number, currency: string): string {
+  const sym = CURRENCY_SYMBOLS[currency] ?? `${currency} `;
   const abs = Math.abs(value);
   if (abs >= 1000) return `${sym}${(value / 1000).toFixed(1)}k`;
   return `${sym}${value.toFixed(0)}`;
@@ -40,6 +32,8 @@ function App() {
   const [toasts, setToasts] = useState<MatchToast[]>([]);
   const [manualMatchTx, setManualMatchTx] = useState<Transaction | null>(null);
   const [highlightedTxIds, setHighlightedTxIds] = useState<Set<string>>(new Set());
+  const [baseCurrency, setBaseCurrency] = useState("EUR");
+  const { rates, loading: ratesLoading, error: ratesError } = useFxRates();
 
   const removeToast = useCallback((id: number) => {
     setToasts((t) => t.filter((x) => x.id !== id));
@@ -70,6 +64,8 @@ function App() {
     setDocFilter,
     deleteLink,
     applyLiveMatch,
+    dateRange,
+    setDateRange,
   } = useTransactions();
 
   const scrollToTransaction = useCallback((txId: string) => {
@@ -105,10 +101,16 @@ function App() {
   const linked = stats ? stats.withInvoice + stats.withRemittance : 0;
   const missing = stats ? stats.total - linked : 0;
 
-  const activeCurrency = filters.find((f) => f.key === "currency")?.value ?? null;
-  const toAmount = activeCurrency ? (t: Transaction) => t.amount : toEur;
-  const income = transactions.filter((t) => t.amount >= 0).reduce((s, t) => s + toAmount(t), 0);
-  const expenses = transactions.filter((t) => t.amount < 0).reduce((s, t) => s + toAmount(t), 0);
+  // Unique currencies present in the loaded data for the picker
+  const availableCurrencies = useMemo(() => {
+    const seen = new Set<string>(["EUR"]);
+    for (const tx of allTransactions) if (tx.currency) seen.add(tx.currency);
+    return Array.from(seen).sort();
+  }, [allTransactions]);
+
+  const toBase = (t: Transaction) => convertAmount(t.amount, t.currency, baseCurrency, rates);
+  const income = transactions.filter((t) => t.amount >= 0).reduce((s, t) => s + toBase(t), 0);
+  const expenses = transactions.filter((t) => t.amount < 0).reduce((s, t) => s + toBase(t), 0);
   const net = income + expenses;
 
   return (
@@ -198,7 +200,7 @@ function App() {
                 onClick={() => addFilter("_direction", "income")}
                 className="text-center group cursor-pointer"
               >
-                <div className="text-lg font-bold tabular-nums text-emerald-400 leading-none">{fmtAmount(income, activeCurrency)}</div>
+                <div className="text-lg font-bold tabular-nums text-emerald-400 leading-none">{fmtAmount(income, baseCurrency)}</div>
                 <div className="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide group-hover:text-zinc-400 transition-colors">Income</div>
               </button>
 
@@ -208,27 +210,40 @@ function App() {
                 onClick={() => addFilter("_direction", "expense")}
                 className="text-center group cursor-pointer"
               >
-                <div className="text-lg font-bold tabular-nums text-red-400 leading-none">{fmtAmount(expenses, activeCurrency)}</div>
+                <div className="text-lg font-bold tabular-nums text-red-400 leading-none">{fmtAmount(expenses, baseCurrency)}</div>
                 <div className="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide group-hover:text-zinc-400 transition-colors">Expenses</div>
               </button>
 
               <div className="w-px h-6 bg-zinc-800" />
 
               <div className="text-center">
-                <div className={`text-lg font-bold tabular-nums leading-none ${net >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmtAmount(net, activeCurrency)}</div>
+                <div className={`text-lg font-bold tabular-nums leading-none ${net >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmtAmount(net, baseCurrency)}</div>
                 <div className="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">Net</div>
               </div>
             </div>
           )}
 
-          {/* Right: progress badge */}
-          <div className="shrink-0">
+          {/* Right: currency picker, model picker + progress badge */}
+          <div className="shrink-0 flex items-center gap-3">
+            <CurrencyPicker
+              value={baseCurrency}
+              currencies={availableCurrencies}
+              loading={ratesLoading}
+              error={ratesError}
+              onChange={setBaseCurrency}
+            />
+            <ModelPicker />
             <ProgressBadge progress={progress} />
           </div>
         </div>
       </header>
 
-      <FilterBar filters={filters} onRemove={removeFilter} onClear={clearFilters} />
+      <FilterBar
+        filters={filters}
+        onRemove={removeFilter}
+        onClear={clearFilters}
+        leftContent={<DateFilter dateRange={dateRange} onChange={setDateRange} />}
+      />
 
       <main>
         {error && (
