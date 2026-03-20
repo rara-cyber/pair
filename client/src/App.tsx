@@ -5,6 +5,7 @@ import { TransactionTable } from "./components/TransactionTable";
 import { FilterBar } from "./components/FilterBar";
 import { DropZone } from "./components/DropZone";
 import { ProgressBadge } from "./components/ProgressBadge";
+import { ModelPicker } from "./components/ModelPicker";
 import { ManualMatchModal } from "./components/ManualMatchModal";
 import type { Transaction, PdfLink } from "./types";
 
@@ -221,8 +222,9 @@ function App() {
             </div>
           )}
 
-          {/* Right: progress badge */}
-          <div className="shrink-0">
+          {/* Right: model picker + progress badge */}
+          <div className="shrink-0 flex items-center gap-3">
+            <ModelPicker />
             <ProgressBadge progress={progress} />
           </div>
         </div>
