@@ -64,6 +64,8 @@ function buildPresets(): Preset[] {
   ];
 }
 
+const PRESETS = buildPresets();
+
 export function DateFilter({ dateRange, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const [customFrom, setCustomFrom] = useState(dateRange.from ?? "");
@@ -85,7 +87,7 @@ export function DateFilter({ dateRange, onChange }: Props) {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const presets = buildPresets();
+  const presets = PRESETS;
   const isActive = dateRange.from !== null || dateRange.to !== null;
 
   const activePreset = presets.find((p) => {
