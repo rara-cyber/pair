@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { join } from "path";
+import { join, basename } from "path";
 import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync, statSync } from "fs";
 import multer from "multer";
 import { parseAllCsvs } from "../services/csvParser";
@@ -96,10 +96,11 @@ router.post("/match-pdf", upload.single("file"), (req: Request, res: Response) =
   }
   const dumpDir = join(DATA_DIR, "document-dump");
   mkdirSync(dumpDir, { recursive: true });
-  writeFileSync(join(dumpDir, req.file.originalname), req.file.buffer);
+  const safeFilename = basename(req.file.originalname);
+  writeFileSync(join(dumpDir, safeFilename), req.file.buffer);
 
   // If this file was previously marked unmatched, clear it so the matcher retries it
-  const unmatchedPath = join(DATA_DIR, "document-unmatched", req.file.originalname);
+  const unmatchedPath = join(DATA_DIR, "document-unmatched", safeFilename);
   if (existsSync(unmatchedPath)) unlinkSync(unmatchedPath);
 
   // Trigger matching pipeline; if already running, queue a new run after it finishes
@@ -169,7 +170,8 @@ router.get("/pdf/documents/:year/:month/:type/:filename", (req: Request, res: Re
   }
 
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+  const safeForHeader1 = filename.replace(/["\r\n\\]/g, "_");
+  res.setHeader("Content-Disposition", `inline; filename="${safeForHeader1}"`);
   res.sendFile(filePath);
 });
 
@@ -186,7 +188,8 @@ router.get("/pdf/unmatched/:filename", (req: Request, res: Response) => {
     return;
   }
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+  const safeForHeader2 = filename.replace(/["\r\n\\]/g, "_");
+  res.setHeader("Content-Disposition", `inline; filename="${safeForHeader2}"`);
   res.sendFile(filePath);
 });
 
