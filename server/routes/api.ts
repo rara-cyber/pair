@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { join } from "path";
-import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync, statSync } from "fs";
 import multer from "multer";
 import { parseAllCsvs } from "../services/csvParser";
 import { indexAllPdfs } from "../services/pdfIndexer";
@@ -197,7 +197,13 @@ router.get("/unmatched-pdfs", async (req: Request, res: Response) => {
     res.json({ pdfs: [] });
     return;
   }
-  const files = readdirSync(unmatchedDir).filter((f) => f.toLowerCase().endsWith(".pdf"));
+  const files = readdirSync(unmatchedDir)
+    .filter((f) => f.toLowerCase().endsWith(".pdf"))
+    .sort((a, b) => {
+      const mA = statSync(join(unmatchedDir, a)).mtimeMs;
+      const mB = statSync(join(unmatchedDir, b)).mtimeMs;
+      return mB - mA; // newest first
+    });
   const pdfs = await Promise.all(
     files.map(async (filename) => {
       const filePath = join(unmatchedDir, filename);

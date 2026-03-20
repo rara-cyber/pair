@@ -10,6 +10,7 @@ export function useTransactions() {
   const [sort, setSort] = useState<SortConfig | null>(null);
   const [filters, setFilters] = useState<Filter[]>([]);
   const [documentFilter, setDocumentFilter] = useState<LinkFilter>("all");
+  const [dateRange, setDateRangeState] = useState<{ from: string | null; to: string | null }>({ from: null, to: null });
 
   useEffect(() => {
     fetch("/api/transactions")
@@ -47,6 +48,12 @@ export function useTransactions() {
   const clearFilters = useCallback(() => {
     setFilters([]);
     setDocumentFilter("all");
+    setDateRangeState({ from: null, to: null });
+    setSort(null);
+  }, []);
+
+  const setDateRange = useCallback((from: string | null, to: string | null) => {
+    setDateRangeState({ from, to });
   }, []);
 
   useEffect(() => {
@@ -122,6 +129,9 @@ export function useTransactions() {
       });
     }
 
+    if (dateRange.from) result = result.filter((tx) => tx.date >= dateRange.from!);
+    if (dateRange.to)   result = result.filter((tx) => tx.date <= dateRange.to!);
+
     const docCount = (tx: typeof result[0]) => (tx.invoiceLinks?.length ?? 0) + (tx.remittanceLinks?.length ?? 0);
     if (documentFilter === "filled") result = result.filter((tx) => docCount(tx) > 0);
     if (documentFilter === "empty")  result = result.filter((tx) => docCount(tx) === 0);
@@ -140,7 +150,7 @@ export function useTransactions() {
     }
 
     return result;
-  }, [data, sort, filters, documentFilter]);
+  }, [data, sort, filters, documentFilter, dateRange]);
 
   const filterByMonth = (month: string) => {
     setFilters((prev) => {
@@ -168,5 +178,7 @@ export function useTransactions() {
     applyLiveMatch,
     setDocFilter,
     filterByMonth,
+    dateRange,
+    setDateRange,
   };
 }
