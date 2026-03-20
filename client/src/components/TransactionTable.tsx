@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { Transaction, PdfLink as PdfLinkType, SortConfig } from "../types";
 import { PdfLink } from "./PdfLink";
+import { CURRENCY_SYMBOLS } from "../hooks/useFxRates";
 
 type LinkFilter = "all" | "filled" | "empty";
 
@@ -16,9 +17,6 @@ interface Props {
   highlightedTxIds?: Set<string>;
 }
 
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  EUR: "€", USD: "$", GBP: "£", CZK: "Kč", CHF: "Fr",
-};
 
 const COLUMNS: { key: keyof Transaction; label: string; align?: string; defaultWidth: number }[] = [
   { key: "date",              label: "Date",        defaultWidth: 112 },

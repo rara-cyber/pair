@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useTransactions } from "./hooks/useTransactions";
 import { useProgress, type MatchEvent } from "./hooks/useProgress";
-import { useFxRates, convertAmount } from "./hooks/useFxRates";
+import { useFxRates, convertAmount, CURRENCY_SYMBOLS } from "./hooks/useFxRates";
 import { TransactionTable } from "./components/TransactionTable";
 import { FilterBar } from "./components/FilterBar";
 import { DateFilter } from "./components/DateFilter";
@@ -12,9 +12,6 @@ import { ModelPicker } from "./components/ModelPicker";
 import { ManualMatchModal } from "./components/ManualMatchModal";
 import type { Transaction, PdfLink } from "./types";
 
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  EUR: "€", USD: "$", GBP: "£", CZK: "Kč", CHF: "Fr", JPY: "¥", CNY: "¥",
-};
 
 function fmtAmount(value: number, currency: string): string {
   const sym = CURRENCY_SYMBOLS[currency] ?? `${currency} `;

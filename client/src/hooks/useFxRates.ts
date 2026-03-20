@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
 
+export const CURRENCY_SYMBOLS: Record<string, string> = {
+  EUR: "€", USD: "$", GBP: "£", CZK: "Kč", CHF: "Fr", JPY: "¥", CNY: "¥",
+};
+
 export interface FxRates {
   // rates relative to EUR (1 EUR = X currency)
   [currency: string]: number;
@@ -11,16 +15,19 @@ export function useFxRates() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetch("https://api.frankfurter.app/latest?from=EUR")
+    const controller = new AbortController();
+    fetch("https://api.frankfurter.app/latest?from=EUR", { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
         setRates({ EUR: 1, ...data.rates });
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        if (err.name === "AbortError") return;
         setError(true);
         setLoading(false);
       });
+    return () => controller.abort();
   }, []);
 
   return { rates, loading, error };

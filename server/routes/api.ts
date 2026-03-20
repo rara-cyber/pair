@@ -199,11 +199,9 @@ router.get("/unmatched-pdfs", async (req: Request, res: Response) => {
   }
   const files = readdirSync(unmatchedDir)
     .filter((f) => f.toLowerCase().endsWith(".pdf"))
-    .sort((a, b) => {
-      const mA = statSync(join(unmatchedDir, a)).mtimeMs;
-      const mB = statSync(join(unmatchedDir, b)).mtimeMs;
-      return mB - mA; // newest first
-    });
+    .map((f) => ({ name: f, mtime: statSync(join(unmatchedDir, f)).mtimeMs }))
+    .sort((a, b) => b.mtime - a.mtime) // newest first
+    .map((f) => f.name);
   const pdfs = await Promise.all(
     files.map(async (filename) => {
       const filePath = join(unmatchedDir, filename);
