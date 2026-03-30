@@ -1,5 +1,5 @@
 {
-  "name": "invoice-checker",
+  "name": "pair",
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
