@@ -7,3 +7,6 @@ account-statements/
 data/
 *.db
 *.pdf
+
+# Claude config - may contain API keys
+.claude/
