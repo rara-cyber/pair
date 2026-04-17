@@ -10,6 +10,7 @@ import { DropZone } from "./components/DropZone";
 import { ProgressBadge } from "./components/ProgressBadge";
 import { ModelPicker } from "./components/ModelPicker";
 import { ManualMatchModal } from "./components/ManualMatchModal";
+import { ChartsView } from "./components/ChartsView";
 import type { Transaction, PdfLink } from "./types";
 
 
@@ -33,6 +34,7 @@ function App() {
   const [manualMatchTx, setManualMatchTx] = useState<Transaction | null>(null);
   const [highlightedTxIds, setHighlightedTxIds] = useState<Set<string>>(new Set());
   const [baseCurrency, setBaseCurrency] = useState("EUR");
+  const [view, setView] = useState<"transactions" | "charts">("transactions");
   const { rates, loading: ratesLoading, error: ratesError } = useFxRates();
 
   const removeToast = useCallback((id: number) => {
@@ -66,7 +68,13 @@ function App() {
     applyLiveMatch,
     dateRange,
     setDateRange,
+    filterByMonth,
   } = useTransactions();
+
+  const activeMonth = useMemo(
+    () => filters.find((f) => f.key === "_month")?.value ?? null,
+    [filters]
+  );
 
   const scrollToTransaction = useCallback((txId: string) => {
     setTimeout(() => {
@@ -151,15 +159,39 @@ function App() {
       {/* Header */}
       <header className="border-b border-zinc-800 px-6 py-4">
         <div className="flex items-center justify-between gap-8">
-          {/* Left: title */}
-          <div className="flex items-center gap-2 shrink-0">
-            <svg className="w-6 h-6 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="10" rx="1" className="text-zinc-600 stroke-current" />
-              <rect x="14" y="7" width="7" height="10" rx="1" className="text-zinc-600 stroke-current" />
-              <path d="M10 8h4" className="text-emerald-500 stroke-current" />
-              <path d="M10 12h4" className="text-emerald-500 stroke-current" strokeDasharray="2 2" />
-            </svg>
-            <h1 className="text-lg font-semibold tracking-wide text-zinc-100" style={{ fontVariant: "small-caps" }}>Pair</h1>
+          {/* Left: title + view tabs */}
+          <div className="flex items-center gap-5 shrink-0">
+            <div className="flex items-center gap-2">
+              <svg className="w-6 h-6 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="10" rx="1" className="text-zinc-600 stroke-current" />
+                <rect x="14" y="7" width="7" height="10" rx="1" className="text-zinc-600 stroke-current" />
+                <path d="M10 8h4" className="text-emerald-500 stroke-current" />
+                <path d="M10 12h4" className="text-emerald-500 stroke-current" strokeDasharray="2 2" />
+              </svg>
+              <h1 className="text-lg font-semibold tracking-wide text-zinc-100" style={{ fontVariant: "small-caps" }}>Pair</h1>
+            </div>
+            <div className="flex items-center rounded-lg border border-zinc-800 bg-zinc-900 p-0.5 text-xs">
+              <button
+                onClick={() => setView("transactions")}
+                className={`px-3 py-1 rounded-md transition-colors ${
+                  view === "transactions"
+                    ? "bg-zinc-800 text-zinc-100"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                Transactions
+              </button>
+              <button
+                onClick={() => setView("charts")}
+                className={`px-3 py-1 rounded-md transition-colors ${
+                  view === "charts"
+                    ? "bg-zinc-800 text-zinc-100"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                Charts
+              </button>
+            </div>
           </div>
 
           {/* Center: KPI stats */}
@@ -256,7 +288,7 @@ function App() {
             Loading transactions…
           </div>
         )}
-        {transactions.length > 0 && (
+        {!loading && view === "transactions" && (
           <TransactionTable
             transactions={transactions}
             sort={sort}
@@ -267,6 +299,15 @@ function App() {
             onDeleteLink={deleteLink}
             onManualMatch={setManualMatchTx}
             highlightedTxIds={highlightedTxIds}
+          />
+        )}
+        {!loading && view === "charts" && (
+          <ChartsView
+            transactions={transactions}
+            baseCurrency={baseCurrency}
+            rates={rates}
+            onMonthClick={filterByMonth}
+            activeMonth={activeMonth}
           />
         )}
       </main>
