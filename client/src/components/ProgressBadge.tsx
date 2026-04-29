@@ -24,23 +24,74 @@ export function ProgressBadge({ progress }: { progress: ProgressState | null }) 
   const isProcessing = !isDone && newTotal > 0;
 
   return (
-    <div className={`flex items-center gap-3 transition-opacity duration-1000 ${isDone ? "opacity-50" : ""}`}>
-      <div className="flex flex-col gap-1 items-end">
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        transition: "opacity 1000ms cubic-bezier(0.22, 1, 0.36, 1)",
+        opacity: isDone ? 0.5 : 1,
+      }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-end" }}>
         {isProcessing && progress.current && (
-          <div className="text-[10px] text-zinc-400 truncate max-w-[160px]" title={progress.current}>
+          <div
+            style={{
+              fontSize: "10px",
+              color: "var(--color-fg-subtle)",
+              fontFamily: "var(--font-mono)",
+              maxWidth: "160px",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            title={progress.current}
+          >
             {progress.current}
           </div>
         )}
-        <div className="w-32 bg-zinc-800 rounded-full h-1.5">
+        <div
+          style={{
+            width: "128px",
+            height: "6px",
+            background: "var(--color-elev-2)",
+            borderRadius: "9999px",
+            overflow: "hidden",
+          }}
+        >
           <div
-            className={`h-1.5 rounded-full transition-all duration-500 ${isDone ? "bg-emerald-600" : "bg-blue-500"}`}
-            style={{ width: `${pct}%` }}
+            style={{
+              height: "100%",
+              width: `${pct}%`,
+              background: isDone ? "var(--color-accent)" : "var(--color-accent-90)",
+              borderRadius: "9999px",
+              transition: "width 500ms cubic-bezier(0.22, 1, 0.36, 1), background 300ms cubic-bezier(0.22, 1, 0.36, 1)",
+            }}
           />
         </div>
       </div>
-      <div className="text-center">
-        <div className="text-lg font-bold tabular-nums text-zinc-100 leading-none">{pct}%</div>
-        <div className="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">
+      <div style={{ textAlign: "center" }}>
+        <div
+          style={{
+            fontSize: "16px",
+            fontWeight: 600,
+            fontVariantNumeric: "tabular-nums",
+            color: "var(--color-white)",
+            lineHeight: 1,
+          }}
+        >
+          {pct}%
+        </div>
+        <div
+          style={{
+            fontSize: "10px",
+            color: "var(--color-fg-subtle)",
+            marginTop: "2px",
+            fontFamily: "var(--font-mono)",
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+          }}
+        >
           {isProcessing ? `${newProcessed}/${newTotal} new` : `${progress.matched} matched`}
         </div>
       </div>

@@ -49,17 +49,76 @@ export function DropZone() {
   if (!dragging && !loading) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 backdrop-blur-sm pointer-events-none">
-      <div className="flex flex-col items-center gap-3 border-2 border-dashed border-blue-500 rounded-2xl px-16 py-12 text-blue-400">
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 50,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(18,20,24,0.8)",
+        backdropFilter: "blur(8px)",
+        pointerEvents: "none",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "16px",
+          padding: "48px 64px",
+          borderRadius: "16px",
+          border: "2px dashed var(--color-accent-25)",
+          background: "var(--color-elev-1)",
+          transition: "border-color 200ms cubic-bezier(0.22, 1, 0.36, 1), background 200ms cubic-bezier(0.22, 1, 0.36, 1)",
+        }}
+      >
         {loading ? (
           <>
-            <svg className="w-10 h-10 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+            <svg
+              style={{ width: "40px", height: "40px", color: "var(--color-accent)", animation: "spin 1s linear infinite" }}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
               <path d="M12 3v3m0 12v3M3 12h3m12 0h3" strokeLinecap="round" />
             </svg>
-            <span className="text-lg font-medium">Uploading…</span>
+            <span style={{ fontSize: "16px", fontWeight: 500, color: "var(--color-fg)" }}>
+              Uploading…
+            </span>
           </>
         ) : (
-          <span className="text-lg font-medium">Drop PDF to match</span>
+          <>
+            <div
+              style={{
+                width: "48px",
+                height: "48px",
+                display: "grid",
+                placeItems: "center",
+                borderRadius: "12px",
+                background: "var(--color-accent-10)",
+                border: "1px solid var(--color-accent-25)",
+              }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <path d="M12 18v-6" />
+                <path d="M9 15l3 3 3-3" />
+              </svg>
+            </div>
+            <div style={{ textAlign: "center", maxWidth: "280px" }}>
+              <span style={{ fontSize: "16px", fontWeight: 500, color: "var(--color-fg)" }}>
+                Drop PDF to{" "}
+                <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--color-accent)" }}>
+                  match
+                </span>
+              </span>
+            </div>
+          </>
         )}
       </div>
     </div>

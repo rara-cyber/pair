@@ -1,10 +1,50 @@
 @import "tailwindcss";
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap');
+
+@theme {
+  --color-accent: #1AE392;
+  --color-accent-90: rgba(26,227,146,0.90);
+  --color-accent-25: rgba(26,227,146,0.25);
+  --color-accent-10: rgba(26,227,146,0.10);
+  --color-accent-06: rgba(26,227,146,0.06);
+  --color-dark: #121418;
+  --color-bg: #121418;
+  --color-elev-1: #1A1D23;
+  --color-elev-2: #22262E;
+  --color-white: #FFFFFF;
+  --color-fg: #FFFFFF;
+  --color-fg-muted: #A4ACBC;
+  --color-fg-subtle: #6E7689;
+  --color-border-dim: rgba(203,213,224,0.18);
+  --color-border-faint: rgba(203,213,224,0.10);
+  --color-danger: #E5484D;
+  --color-danger-soft: rgba(229,72,77,0.14);
+  --color-warn: #F5A524;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-serif: 'Instrument Serif', 'Times New Roman', serif;
+}
+
 body {
   margin: 0;
-  background-color: #0a0a0a;
-  color: #fafafa;
-  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+
+  /* dotted grid backdrop */
+  background-image:
+    radial-gradient(circle at 88% 0%, var(--color-accent-06), transparent 40%),
+    radial-gradient(rgba(203,213,224,0.08) 1px, transparent 1px);
+  background-size: auto, 22px 22px;
+  background-position: 0 0, 0 0;
+  background-attachment: fixed;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-dark);
 }
 
 #root {

@@ -122,7 +122,7 @@ function App() {
   const net = income + expenses;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }}>
       <DropZone />
 
       {/* Match toast notifications */}
@@ -131,132 +131,195 @@ function App() {
           <div
             key={toast.id}
             onClick={() => scrollToTransaction(toast.tx.transferWiseId)}
-            className="flex flex-col gap-1 px-4 py-3 rounded-xl shadow-xl text-sm max-w-sm w-full border animate-in slide-in-from-right-4 fade-in duration-300 bg-zinc-900 border-emerald-700 text-zinc-100 cursor-pointer hover:border-emerald-500"
+            className="flex flex-col gap-1 px-4 py-3 rounded-xl shadow-xl text-sm max-w-sm w-full border cursor-pointer transition-all hover:brightness-110"
+            style={{
+              background: 'var(--color-elev-1)',
+              borderColor: 'var(--color-accent-25)',
+              color: 'var(--color-fg)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}
           >
-            <div className="flex items-start justify-between gap-3">
+            <div style={{
+              position: 'absolute', left: 0, top: 0, bottom: 0,
+              width: '3px', background: 'var(--color-accent)',
+              boxShadow: '0 0 12px var(--color-accent-25)'
+            }}></div>
+            <div className="flex items-start justify-between gap-3" style={{ marginLeft: '8px' }}>
               <div className="flex flex-col gap-0.5 min-w-0">
-                <span className="font-medium truncate text-xs text-zinc-500">{toast.filename}</span>
-                <span className="text-emerald-400 font-semibold">Match found</span>
-                <span className="text-zinc-300">
-                  {toast.tx.date} &mdash; <strong>{toast.tx.amount} {toast.tx.currency}</strong>
-                </span>
-                <span className="text-zinc-400 truncate">
+                <div className="flex items-center justify-between text-xs uppercase tracking-wider" style={{ color: 'var(--color-fg-subtle)', fontFamily: 'var(--font-mono)', marginBottom: '8px' }}>
+                  <span>Match found</span>
+                  <span onClick={(e) => { e.stopPropagation(); removeToast(toast.id); }} style={{ cursor: 'pointer', opacity: 0.7 }}>✕</span>
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-white)', wordBreak: 'break-all', marginBottom: '6px' }}>
+                  {toast.filename}
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--color-fg-muted)' }}>
+                  {toast.tx.date} · <strong>{toast.tx.amount} {toast.tx.currency}</strong>
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--color-fg-muted)' }}>
                   {toast.tx.payerName || toast.tx.payeeName || toast.tx.merchant || toast.tx.description}
-                </span>
-                <span className="text-zinc-600 text-xs font-mono">{toast.tx.transferWiseId}</span>
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--color-fg-subtle)', marginTop: '8px', letterSpacing: '0.04em' }}>
+                  {toast.tx.transferWiseId}
+                </div>
               </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); removeToast(toast.id); }}
-                className="text-zinc-600 hover:text-zinc-300 shrink-0 mt-0.5"
-              >
-                ✕
-              </button>
             </div>
           </div>
         ))}
       </div>
 
       {/* Header */}
-      <header className="border-b border-zinc-800 px-6 py-4">
-        <div className="flex items-center justify-between gap-8">
-          {/* Left: title + view tabs */}
-          <div className="flex items-center gap-5 shrink-0">
-            <div className="flex items-center gap-2">
-              <svg className="w-6 h-6 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="10" rx="1" className="text-zinc-600 stroke-current" />
-                <rect x="14" y="7" width="7" height="10" rx="1" className="text-zinc-600 stroke-current" />
-                <path d="M10 8h4" className="text-emerald-500 stroke-current" />
-                <path d="M10 12h4" className="text-emerald-500 stroke-current" strokeDasharray="2 2" />
-              </svg>
-              <h1 className="text-lg font-semibold tracking-wide text-zinc-100" style={{ fontVariant: "small-caps" }}>Pair</h1>
+      <header
+        className="sticky top-0 z-30"
+        style={{
+          background: 'rgba(18,20,24,0.78)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid var(--color-border-dim)'
+        }}
+      >
+        <div style={{ height: '72px', padding: '0 24px', display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: '20px' }}>
+          {/* Left: branding + tabs */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            {/* SIÁN brand */}
+            <a href="#" style={{ display: 'inline-flex', alignItems: 'baseline', gap: '8px', textDecoration: 'none', color: 'inherit' }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: '20px', letterSpacing: '0.02em', color: 'var(--color-white)' }}>SIÁN</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--color-fg-subtle)' }}>AGENCY</span>
+            </a>
+            <span style={{ width: '1px', height: '22px', background: 'var(--color-border-dim)' }}></span>
+
+            {/* Pair product */}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{
+                width: '24px', height: '24px',
+                display: 'grid', placeItems: 'center',
+                border: '1px solid var(--color-border-dim)',
+                borderRadius: '6px',
+                background: 'var(--color-elev-1)'
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="7" height="12" rx="1.2" stroke="#A4ACBC"/>
+                  <rect x="14" y="8" width="7" height="12" rx="1.2" stroke="#A4ACBC"/>
+                  <path d="M10 9h4" stroke="#1AE392"/>
+                  <path d="M10 13h4" stroke="#1AE392" strokeDasharray="2 2"/>
+                </svg>
+              </span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '15px', letterSpacing: '0.01em', color: 'var(--color-white)' }}>Pair</span>
+              <span style={{
+                fontFamily: 'var(--font-mono)', fontSize: '10px',
+                letterSpacing: '0.2em', textTransform: 'uppercase',
+                color: 'var(--color-accent)',
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                paddingLeft: '10px', marginLeft: '2px',
+                borderLeft: '1px solid var(--color-border-dim)'
+              }}>
+                <span style={{
+                  width: '6px', height: '6px', borderRadius: '50%',
+                  background: 'var(--color-accent)',
+                  boxShadow: '0 0 0 0 var(--color-accent-25)',
+                  animation: 'pulse 1.6s ease-out infinite'
+                }}></span>
+                <span>Live</span>
+              </span>
             </div>
-            <div className="flex items-center rounded-lg border border-zinc-800 bg-zinc-900 p-0.5 text-xs">
+
+            {/* Segmented controls */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center',
+              border: '1px solid var(--color-border-dim)',
+              borderRadius: '9999px',
+              padding: '3px',
+              background: 'var(--color-elev-1)'
+            }}>
               <button
                 onClick={() => setView("transactions")}
-                className={`px-3 py-1 rounded-md transition-colors ${
-                  view === "transactions"
-                    ? "bg-zinc-800 text-zinc-100"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
+                style={{
+                  fontSize: '12px', fontWeight: 500, padding: '6px 14px', borderRadius: '9999px',
+                  color: view === "transactions" ? 'var(--color-dark)' : 'var(--color-fg-muted)',
+                  background: view === "transactions" ? 'var(--color-accent)' : 'transparent',
+                  border: 'none', cursor: 'pointer',
+                  transition: 'color 200ms cubic-bezier(0.22, 1, 0.36, 1), background 200ms cubic-bezier(0.22, 1, 0.36, 1)'
+                }}
               >
                 Transactions
               </button>
               <button
                 onClick={() => setView("charts")}
-                className={`px-3 py-1 rounded-md transition-colors ${
-                  view === "charts"
-                    ? "bg-zinc-800 text-zinc-100"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
+                style={{
+                  fontSize: '12px', fontWeight: 500, padding: '6px 14px', borderRadius: '9999px',
+                  color: view === "charts" ? 'var(--color-dark)' : 'var(--color-fg-muted)',
+                  background: view === "charts" ? 'var(--color-accent)' : 'transparent',
+                  border: 'none', cursor: 'pointer',
+                  transition: 'color 200ms cubic-bezier(0.22, 1, 0.36, 1), background 200ms cubic-bezier(0.22, 1, 0.36, 1)'
+                }}
               >
                 Charts
               </button>
             </div>
           </div>
 
-          {/* Center: KPI stats */}
+          {/* Center: KPI strip */}
           {stats && (
-            <div className="flex items-center gap-5">
-              <div className="text-center">
-                <div className="text-lg font-bold tabular-nums text-zinc-100 leading-none">{stats.total}</div>
-                <div className="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">Transactions</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '18px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--color-white)', fontVariantNumeric: 'tabular-nums' }}>{stats.total}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--color-fg-subtle)', marginTop: '6px' }}>Tx</span>
               </div>
-
-              <div className="w-px h-6 bg-zinc-800" />
+              <span style={{ width: '1px', height: '28px', background: 'var(--color-border-dim)' }}></span>
 
               <button
                 onClick={() => setDocFilter(documentFilter === "filled" ? "all" : "filled")}
-                className="text-center group cursor-pointer"
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', border: 'none', background: 'none', color: 'inherit'
+                }}
               >
-                <div className={`text-lg font-bold tabular-nums leading-none transition-colors ${documentFilter === "filled" ? "text-emerald-400" : "text-emerald-500 group-hover:text-emerald-400"}`}>
-                  {linked}
-                </div>
-                <div className="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide group-hover:text-zinc-400 transition-colors">Linked</div>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--color-accent)', fontVariantNumeric: 'tabular-nums' }}>{linked}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--color-fg-subtle)', marginTop: '6px' }}>Linked</span>
               </button>
-
-              <div className="w-px h-6 bg-zinc-800" />
+              <span style={{ width: '1px', height: '28px', background: 'var(--color-border-dim)' }}></span>
 
               <button
                 onClick={() => setDocFilter(documentFilter === "empty" ? "all" : "empty")}
-                className="text-center group cursor-pointer"
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', border: 'none', background: 'none', color: 'inherit'
+                }}
               >
-                <div className={`text-lg font-bold tabular-nums leading-none transition-colors ${documentFilter === "empty" ? "text-amber-400" : "text-zinc-400 group-hover:text-amber-400"}`}>
-                  {missing}
-                </div>
-                <div className="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide group-hover:text-zinc-400 transition-colors">Missing</div>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--color-warn)', fontVariantNumeric: 'tabular-nums' }}>{missing}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--color-fg-subtle)', marginTop: '6px' }}>Missing</span>
               </button>
-
-              <div className="w-px h-6 bg-zinc-800" />
+              <span style={{ width: '1px', height: '28px', background: 'var(--color-border-dim)' }}></span>
 
               <button
                 onClick={() => addFilter("_direction", "income")}
-                className="text-center group cursor-pointer"
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', border: 'none', background: 'none', color: 'inherit'
+                }}
               >
-                <div className="text-lg font-bold tabular-nums text-emerald-400 leading-none">{fmtAmount(income, baseCurrency)}</div>
-                <div className="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide group-hover:text-zinc-400 transition-colors">Income</div>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--color-accent)', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(income, baseCurrency)}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--color-fg-subtle)', marginTop: '6px' }}>Income</span>
               </button>
-
-              <div className="w-px h-6 bg-zinc-800" />
+              <span style={{ width: '1px', height: '28px', background: 'var(--color-border-dim)' }}></span>
 
               <button
                 onClick={() => addFilter("_direction", "expense")}
-                className="text-center group cursor-pointer"
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', border: 'none', background: 'none', color: 'inherit'
+                }}
               >
-                <div className="text-lg font-bold tabular-nums text-red-400 leading-none">{fmtAmount(expenses, baseCurrency)}</div>
-                <div className="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide group-hover:text-zinc-400 transition-colors">Expenses</div>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--color-danger)', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(expenses, baseCurrency)}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--color-fg-subtle)', marginTop: '6px' }}>Expenses</span>
               </button>
+              <span style={{ width: '1px', height: '28px', background: 'var(--color-border-dim)' }}></span>
 
-              <div className="w-px h-6 bg-zinc-800" />
-
-              <div className="text-center">
-                <div className={`text-lg font-bold tabular-nums leading-none ${net >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmtAmount(net, baseCurrency)}</div>
-                <div className="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-wide">Net</div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: net >= 0 ? 'var(--color-accent)' : 'var(--color-danger)', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(net, baseCurrency)}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--color-fg-subtle)', marginTop: '6px' }}>Net</span>
               </div>
             </div>
           )}
 
-          {/* Right: currency picker, model picker + progress badge */}
-          <div className="shrink-0 flex items-center gap-3">
+          {/* Right: currency + model + progress */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <CurrencyPicker
               value={baseCurrency}
               currencies={availableCurrencies}

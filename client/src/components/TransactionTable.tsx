@@ -97,61 +97,155 @@ export function TransactionTable({
   };
 
   return (
-    <div className="overflow-y-auto max-h-[calc(100vh-8rem)]">
-      <table className="text-sm table-fixed" style={{ width: "max-content", minWidth: "100%" }}>
-        <thead className="sticky top-0 z-10 bg-zinc-950">
-          <tr className="border-b border-zinc-800">
-            {/* Status indicator column */}
-            <th className="w-1 p-0" style={{ width: 4 }} />
+    <div
+      style={{
+        overflowY: "auto",
+        maxHeight: "calc(100vh - 8rem)",
+      }}
+    >
+      <div
+        style={{
+          border: "1px solid var(--color-border-dim)",
+          borderRadius: "12px",
+          background: "var(--color-elev-1)",
+          overflow: "hidden",
+        }}
+      >
+        <table
+          style={{
+            width: "max-content",
+            minWidth: "100%",
+            borderCollapse: "collapse",
+            fontSize: "13px",
+          }}
+        >
+          <thead>
+            <tr>
+              {/* Status indicator column */}
+              <th style={{ width: 4, padding: 0 }} />
 
-            {COLUMNS.map((col) => (
+              {COLUMNS.map((col) => (
+                <th
+                  key={col.key}
+                  style={{
+                    width: colWidths[col.key],
+                    position: "sticky",
+                    top: 0,
+                    background: "var(--color-elev-1)",
+                    textAlign: "left",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "10px",
+                    fontWeight: 500,
+                    letterSpacing: "0.16em",
+                    textTransform: "uppercase",
+                    color: "var(--color-fg-subtle)",
+                    padding: "14px 14px",
+                    borderBottom: "1px solid var(--color-border-dim)",
+                    whiteSpace: "nowrap",
+                    userSelect: "none",
+                  }}
+                >
+                  {col.label}
+                  <SortArrow column={col.key} sort={sort} />
+                  {/* Resize handle */}
+                  <span
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      startResize(col.key, e.clientX, colWidths[col.key]);
+                    }}
+                    style={{
+                      position: "absolute",
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: "2px",
+                      cursor: "col-resize",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span
+                      style={{
+                        width: "1px",
+                        height: "12px",
+                        background: "var(--color-border-dim)",
+                        transition: "background 120ms cubic-bezier(0.22, 1, 0.36, 1)",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "var(--color-fg-muted)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "var(--color-border-dim)";
+                      }}
+                    />
+                  </span>
+                </th>
+              ))}
+
               <th
-                key={col.key}
-                style={{ width: colWidths[col.key] }}
-                className={`relative px-3 py-2 text-xs font-medium text-zinc-400 cursor-pointer hover:text-zinc-200 select-none whitespace-nowrap ${
-                  col.align === "right" ? "text-right" : "text-left"
-                }`}
-                onClick={() => onSort(col.key)}
+                onClick={onDocumentFilterCycle}
+                style={{
+                  width: docsWidth,
+                  position: "sticky",
+                  top: 0,
+                  background: "var(--color-elev-1)",
+                  textAlign: "left",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "10px",
+                  fontWeight: 500,
+                  letterSpacing: "0.16em",
+                  textTransform: "uppercase",
+                  color: "var(--color-fg-subtle)",
+                  padding: "14px 14px",
+                  borderBottom: "1px solid var(--color-border-dim)",
+                  whiteSpace: "nowrap",
+                  userSelect: "none",
+                  cursor: "pointer",
+                }}
+                title="Click to filter: all → linked → unlinked"
               >
-                {col.label}
-                <SortArrow column={col.key} sort={sort} />
-                {/* Resize handle */}
+                Documents
+                <LinkFilterIndicator filter={documentFilter} />
                 <span
                   onMouseDown={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    startResize(col.key, e.clientX, colWidths[col.key]);
+                    startResize("_docs", e.clientX, docsWidth, true);
                   }}
-                  className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize flex items-center justify-center group"
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: "2px",
+                    cursor: "col-resize",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <span className="w-px h-3 bg-zinc-700 group-hover:bg-zinc-400 transition-colors" />
+                  <span
+                    style={{
+                      width: "1px",
+                      height: "12px",
+                      background: "var(--color-border-dim)",
+                      transition: "background 120ms cubic-bezier(0.22, 1, 0.36, 1)",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "var(--color-fg-muted)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "var(--color-border-dim)";
+                    }}
+                  />
                 </span>
               </th>
-            ))}
-
-            <th
-              onClick={onDocumentFilterCycle}
-              style={{ width: docsWidth }}
-              className="relative px-3 py-2 text-xs font-medium text-zinc-400 text-left whitespace-nowrap cursor-pointer hover:text-zinc-200 select-none"
-              title="Click to filter: all → linked → unlinked"
-            >
-              Documents
-              <LinkFilterIndicator filter={documentFilter} />
-              <span
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  startResize("_docs", e.clientX, docsWidth, true);
-                }}
-                className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize flex items-center justify-center group"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <span className="w-px h-3 bg-zinc-700 group-hover:bg-zinc-400 transition-colors" />
-              </span>
-            </th>
-          </tr>
-        </thead>
+            </tr>
+          </thead>
         <tbody>
           {transactions.map((tx, i) => {
             const allLinks: PdfLinkType[] = [
@@ -166,19 +260,69 @@ export function TransactionTable({
               <tr
                 key={`${tx.transferWiseId}-${i}`}
                 data-tx-id={tx.transferWiseId}
-                className={`border-b border-zinc-800/50 hover:bg-zinc-900/50 ${
-                  isHighlighted ? "bg-emerald-950/50 ring-2 ring-emerald-500/50 animate-pulse" : ""
-                }`}
+                style={{
+                  transition: "background 120ms cubic-bezier(0.22, 1, 0.36, 1)",
+                }}
+                onMouseEnter={(e) => {
+                  if (!isHighlighted) {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.02)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isHighlighted) {
+                    e.currentTarget.style.background = "transparent";
+                  }
+                }}
               >
-                {/* Status dot */}
-                <td className="p-0" style={{ width: 4 }}>
-                  <div className={`h-full w-0.5 min-h-[2.25rem] ${hasDoc ? "bg-emerald-500/50" : "bg-transparent"}`} />
+                {/* Status bar */}
+                <td
+                  style={{
+                    width: 4,
+                    padding: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "3px",
+                      height: "100%",
+                      minHeight: "38px",
+                      borderRadius: "0 2px 2px 0",
+                      background: hasDoc
+                        ? "var(--color-accent)"
+                        : "transparent",
+                      boxShadow: hasDoc
+                        ? "0 0 8px var(--color-accent-25)"
+                        : "none",
+                    }}
+                  />
                 </td>
                 {COLUMNS.map((col) => {
                   const value = tx[col.key];
-                  let display: string;
+                  let display: string | React.ReactNode;
                   if (col.key === "amount") {
-                    display = `${symbol} ${(value as number).toFixed(2)}`;
+                    const amount = value as number;
+                    const isNegative = amount < 0;
+                    display = (
+                      <>
+                        {isNegative && "− "}
+                        {symbol} {Math.abs(amount).toFixed(2)}
+                        <span style={{ marginLeft: "4px", fontSize: "0.85em", color: "var(--color-fg-subtle)" }}>
+                          {tx.currency}
+                        </span>
+                      </>
+                    );
+                  } else if (col.key === "date") {
+                    const [datePart, timePart] = String(value ?? "").split("T");
+                    display = (
+                      <>
+                        {datePart}
+                        {timePart && (
+                          <span style={{ color: "var(--color-fg-subtle)" }}>
+                            {" · "}{timePart.slice(0, 5)}
+                          </span>
+                        )}
+                      </>
+                    );
                   } else {
                     display = String(value ?? "");
                   }
@@ -187,7 +331,18 @@ export function TransactionTable({
                   return (
                     <td
                       key={col.key}
-                      style={{ width: colWidths[col.key], maxWidth: colWidths[col.key] }}
+                      style={{
+                        width: colWidths[col.key],
+                        maxWidth: colWidths[col.key],
+                        padding: "12px 14px",
+                        borderBottom: "1px solid var(--color-border-faint)",
+                        color: "var(--color-fg)",
+                        verticalAlign: "middle",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        cursor: "pointer",
+                      }}
                       onClick={() => {
                         if (isId) {
                           onManualMatch(tx);
@@ -200,18 +355,20 @@ export function TransactionTable({
                           onFilter(col.key, String(value ?? ""));
                         }
                       }}
-                      className={`px-3 py-2 cursor-pointer hover:bg-zinc-800/50 truncate overflow-hidden ${
-                        col.align === "right" ? "text-right font-mono" : ""
-                      } ${isNegative ? "text-red-400" : ""} ${
-                        isId ? "text-zinc-500 hover:text-emerald-400 font-mono text-xs" : ""
-                      }`}
-                      title={isId ? "Click to link a document manually" : display}
+                      title={isId ? "Click to link a document manually" : String(display)}
                     >
                       {display}
                     </td>
                   );
                 })}
-                <td className="px-3 py-2" style={{ width: docsWidth, maxWidth: docsWidth }}>
+                <td
+                  style={{
+                    width: docsWidth,
+                    maxWidth: docsWidth,
+                    padding: "12px 14px",
+                    borderBottom: "1px solid var(--color-border-faint)",
+                  }}
+                >
                   <PdfLink
                     links={allLinks}
                     onDelete={(filename, type) => onDeleteLink(tx.transferWiseId, filename, type)}
@@ -223,5 +380,6 @@ export function TransactionTable({
         </tbody>
       </table>
     </div>
+  </div>
   );
 }
