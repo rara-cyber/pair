@@ -55,3 +55,8 @@ export function emitMatch(transferWiseId: string, linkType: "Sales" | "Expenses"
 }) {
   progressEmitter.emit("match", { transferWiseId, linkType, link });
 }
+
+// Emit a single categorized transaction so the client can update its row live
+export function emitCategory(transferWiseId: string, categories: string[]) {
+  progressEmitter.emit("category", { transferWiseId, categories });
+}

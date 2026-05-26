@@ -1,7 +1,6 @@
 import type { Transaction } from "../types";
 import type { FxRates } from "../hooks/useFxRates";
 import { CashFlowCharts } from "./CashFlowCharts";
-import { BalanceTrendChart } from "./BalanceTrendChart";
 
 interface Props {
   transactions: Transaction[];
@@ -26,9 +25,6 @@ export function ChartsView({ transactions, baseCurrency, rates, onMonthClick, ac
         transactions={transactions}
         onMonthClick={onMonthClick}
         activeMonth={activeMonth}
-      />
-      <BalanceTrendChart
-        transactions={transactions}
         baseCurrency={baseCurrency}
         rates={rates}
       />

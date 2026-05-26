@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTransactions } from "./hooks/useTransactions";
 import { useProgress, type MatchEvent } from "./hooks/useProgress";
 import { useFxRates, convertAmount, CURRENCY_SYMBOLS } from "./hooks/useFxRates";
@@ -35,7 +35,25 @@ function App() {
   const [highlightedTxIds, setHighlightedTxIds] = useState<Set<string>>(new Set());
   const [baseCurrency, setBaseCurrency] = useState("EUR");
   const [view, setView] = useState<"transactions" | "charts">("transactions");
+  const [categories, setCategories] = useState<string[]>([]);
   const { rates, loading: ratesLoading, error: ratesError } = useFxRates();
+
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((res) => res.json())
+      .then((d: { categories: string[] }) => setCategories(d.categories))
+      .catch(() => {});
+  }, []);
+
+  const addCategory = useCallback(async (name: string) => {
+    const res = await fetch("/api/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const d: { categories: string[] } = await res.json();
+    setCategories(d.categories);
+  }, []);
 
   const removeToast = useCallback((id: number) => {
     setToasts((t) => t.filter((x) => x.id !== id));
@@ -66,6 +84,8 @@ function App() {
     setDocFilter,
     deleteLink,
     applyLiveMatch,
+    applyCategory,
+    updateCategory,
     dateRange,
     setDateRange,
     filterByMonth,
@@ -104,7 +124,7 @@ function App() {
     setManualMatchTx(null);
   }, []);
 
-  const progress = useProgress(handleMatch);
+  const progress = useProgress(handleMatch, applyCategory);
 
   const linked = stats ? stats.withInvoice + stats.withRemittance : 0;
   const missing = stats ? stats.total - linked : 0;
@@ -337,7 +357,21 @@ function App() {
         filters={filters}
         onRemove={removeFilter}
         onClear={clearFilters}
-        leftContent={<DateFilter dateRange={dateRange} onChange={setDateRange} />}
+        leftContent={
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <DateFilter dateRange={dateRange} onChange={setDateRange} />
+            <select
+              value=""
+              onChange={(e) => { if (e.target.value) addFilter("_category", e.target.value); }}
+              className="text-xs px-2.5 py-1 rounded border border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200 transition-colors cursor-pointer focus:outline-none"
+            >
+              <option value="">All categories</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+        }
       />
 
       <main>
@@ -362,6 +396,9 @@ function App() {
             onDeleteLink={deleteLink}
             onManualMatch={setManualMatchTx}
             highlightedTxIds={highlightedTxIds}
+            categories={categories}
+            onCategoryChange={updateCategory}
+            onAddCategory={addCategory}
           />
         )}
         {!loading && view === "charts" && (

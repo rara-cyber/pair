@@ -28,6 +28,7 @@ export interface Transaction {
   transactionDetailsType: string;
   invoiceLinks?: PdfLink[];
   remittanceLinks?: PdfLink[];
+  categories?: string[];
 }
 
 export interface PdfLink {

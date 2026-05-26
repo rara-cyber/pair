@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import type { Transaction, ApiResponse, SortConfig, Filter } from "../types";
+import type { Transaction, ApiResponse, SortConfig, Filter, CategoryEvent } from "../types";
 
 type LinkFilter = "all" | "filled" | "empty";
 
@@ -107,6 +107,32 @@ export function useTransactions() {
     });
   };
 
+  const applyCategory = useCallback((event: CategoryEvent) => {
+    setData((prev) => {
+      if (!prev) return prev;
+      const transactions = prev.transactions.map((tx) =>
+        tx.transferWiseId === event.transferWiseId ? { ...tx, categories: event.categories } : tx
+      );
+      return { ...prev, transactions };
+    });
+  }, []);
+
+  const updateCategory = useCallback(async (transferWiseId: string, categories: string[]) => {
+    // Optimistically update local state
+    setData((prev) => {
+      if (!prev) return prev;
+      const transactions = prev.transactions.map((tx) =>
+        tx.transferWiseId === transferWiseId ? { ...tx, categories } : tx
+      );
+      return { ...prev, transactions };
+    });
+    await fetch("/api/transaction/" + transferWiseId + "/category", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ categories }),
+    });
+  }, []);
+
   const cycleDocumentFilter = () =>
     setDocumentFilter((f) => (f === "all" ? "filled" : f === "filled" ? "empty" : "all"));
 
@@ -119,6 +145,7 @@ export function useTransactions() {
     for (const filter of filters) {
       result = result.filter((tx) => {
         if (filter.key === "_month") return tx.date.startsWith(filter.value);
+        if (filter.key === "_category") return tx.categories?.includes(filter.value) ?? false;
         if (filter.key === "_direction") {
           if (filter.value === "income") return tx.amount >= 0;
           if (filter.value === "expense") return tx.amount < 0;
@@ -176,6 +203,8 @@ export function useTransactions() {
     cycleDocumentFilter,
     deleteLink,
     applyLiveMatch,
+    applyCategory,
+    updateCategory,
     setDocFilter,
     filterByMonth,
     dateRange,

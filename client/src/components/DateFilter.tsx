@@ -61,6 +61,14 @@ function buildPresets(): Preset[] {
         to: fmt(new Date(today.getFullYear(), 11, 31)),
       }),
     },
+    {
+      key: "last-year",
+      label: "Last year",
+      getRange: () => ({
+        from: fmt(new Date(today.getFullYear() - 1, 0, 1)),
+        to: fmt(new Date(today.getFullYear() - 1, 11, 31)),
+      }),
+    },
   ];
 }
 

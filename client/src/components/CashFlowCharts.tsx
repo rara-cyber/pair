@@ -10,48 +10,35 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { Transaction } from "../types";
+import { CURRENCY_SYMBOLS, convertAmount, type FxRates } from "../hooks/useFxRates";
 
 interface Props {
   transactions: Transaction[];
   onMonthClick?: (month: string) => void;
   activeMonth?: string | null;
+  baseCurrency: string;
+  rates: FxRates | null;
 }
 
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  EUR: "€", USD: "$", GBP: "£", CZK: "Kč", CHF: "Fr",
-};
-
-function formatAmount(value: number, symbol = "€") {
-  if (Math.abs(value) >= 1000) return `${symbol}${(value / 1000).toFixed(1)}k`;
-  return `${symbol}${value.toFixed(0)}`;
+function formatAmount(value: number, symbol: string): string {
+  const abs = Math.abs(value);
+  const sign = value < 0 ? "-" : "";
+  if (abs >= 1_000_000) return `${sign}${symbol}${(abs / 1_000_000).toFixed(2)}M`;
+  if (abs >= 1000) return `${sign}${symbol}${(abs / 1000).toFixed(1)}k`;
+  return `${sign}${symbol}${abs.toFixed(0)}`;
 }
 
-function detectCurrency(transactions: Transaction[]): string {
-  const counts = new Map<string, number>();
-  for (const tx of transactions) {
-    if (tx.currency) counts.set(tx.currency, (counts.get(tx.currency) ?? 0) + 1);
-  }
-  if (counts.size === 0) return "€";
-  const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
-  return CURRENCY_SYMBOLS[dominant] ?? dominant;
-}
-
-function toEur(tx: Transaction): number {
-  if (tx.currency === "EUR") return tx.amount;
-  const rate = parseFloat(tx.exchangeRate);
-  if (!rate) return tx.amount;
-  if (tx.exchangeFrom === tx.currency && tx.exchangeTo === "EUR") return tx.amount * rate;
-  if (tx.exchangeFrom === "EUR" && tx.exchangeTo === tx.currency) return tx.amount / rate;
-  return tx.amount;
-}
-
-function buildMonthlyData(transactions: Transaction[], convertToEur: boolean) {
+function buildMonthlyData(
+  transactions: Transaction[],
+  baseCurrency: string,
+  rates: FxRates | null
+) {
   const map = new Map<string, { income: number; expenses: number }>();
 
   for (const tx of transactions) {
     const month = tx.date.substring(0, 7);
     const entry = map.get(month) ?? { income: 0, expenses: 0 };
-    const amount = convertToEur ? toEur(tx) : tx.amount;
+    const amount = convertAmount(tx.amount, tx.currency, baseCurrency, rates);
     if (amount >= 0) {
       entry.income += amount;
     } else {
@@ -62,49 +49,64 @@ function buildMonthlyData(transactions: Transaction[], convertToEur: boolean) {
 
   const sorted = Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
 
-  let runningNet = 0;
+  let cumulative = 0;
   return sorted.map(([month, { income, expenses }]) => {
     const net = income - expenses;
-    runningNet += net;
+    cumulative += net;
     return {
       month: month.substring(5),
       fullMonth: month,
       income: Math.round(income * 100) / 100,
       expenses: Math.round(expenses * 100) / 100,
       net: Math.round(net * 100) / 100,
-      runningNet: Math.round(runningNet * 100) / 100,
+      cumulative: Math.round(cumulative * 100) / 100,
     };
   });
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, symbol }: any) => {
   if (!active || !payload?.length) return null;
+  const p = payload[0].payload as {
+    income: number;
+    expenses: number;
+    net: number;
+    cumulative: number;
+  };
   return (
-    <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs shadow-lg">
+    <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs shadow-lg min-w-[160px]">
       <div className="font-medium text-zinc-200 mb-1">{label}</div>
-      {payload.map((p: any) => (
-        <div key={p.name} className="flex justify-between gap-4" style={{ color: p.color }}>
-          <span>{p.name}</span>
-          <span className="font-mono">{formatAmount(p.value)}</span>
-        </div>
-      ))}
+      <div className="flex justify-between gap-4 text-emerald-400">
+        <span>Income</span>
+        <span className="font-mono">{formatAmount(p.income, symbol)}</span>
+      </div>
+      <div className="flex justify-between gap-4 text-red-400">
+        <span>Expenses</span>
+        <span className="font-mono">{formatAmount(p.expenses, symbol)}</span>
+      </div>
+      <div className={`flex justify-between gap-4 ${p.net >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+        <span>Net</span>
+        <span className="font-mono">{formatAmount(p.net, symbol)}</span>
+      </div>
+      <div className="flex justify-between gap-4 text-violet-400">
+        <span>Cumulative</span>
+        <span className="font-mono">{formatAmount(p.cumulative, symbol)}</span>
+      </div>
     </div>
   );
 };
 
-export function CashFlowCharts({ transactions, onMonthClick, activeMonth }: Props) {
-  const multiCurrency = new Set(transactions.map((t) => t.currency)).size > 1;
-  const symbol = multiCurrency ? "€" : detectCurrency(transactions);
-  const data = buildMonthlyData(transactions, multiCurrency);
+export function CashFlowCharts({ transactions, onMonthClick, activeMonth, baseCurrency, rates }: Props) {
+  const symbol = CURRENCY_SYMBOLS[baseCurrency] ?? `${baseCurrency} `;
+  const data = buildMonthlyData(transactions, baseCurrency, rates);
   if (data.length === 0) return null;
   const totalIncome   = data.reduce((s, d) => s + d.income, 0);
   const totalExpenses = data.reduce((s, d) => s + d.expenses, 0);
   const totalNet      = totalIncome - totalExpenses;
 
   return (
-    <div className="px-6 py-4 border-b border-zinc-800 flex gap-8 items-center">
-      {/* Summary — prominently sized */}
-      <div className="flex gap-8 shrink-0">
+    <div className="px-6 py-4 border-b border-zinc-800">
+      {/* Summary — horizontal row above the chart */}
+      <div className="flex gap-8 mb-4">
         <div>
           <div className="text-[11px] text-zinc-500 uppercase tracking-wider mb-1">Income</div>
           <div className="text-2xl font-bold text-emerald-400 tabular-nums leading-none">
@@ -125,42 +127,53 @@ export function CashFlowCharts({ transactions, onMonthClick, activeMonth }: Prop
         </div>
       </div>
 
-      {/* Divider */}
-      <div className="w-px self-stretch bg-zinc-800 shrink-0" />
-
       {/* Chart */}
-      <div className="flex-1 min-w-0">
-        <ResponsiveContainer width="100%" height={96}>
-          <ComposedChart
-            data={data}
-            margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
-            onClick={(e) => {
-              if (e?.activePayload?.[0]?.payload?.fullMonth && onMonthClick) {
-                onMonthClick(e.activePayload[0].payload.fullMonth);
-              }
-            }}
-            style={{ cursor: onMonthClick ? "pointer" : "default" }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-            <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#52525b" }} axisLine={false} tickLine={false} />
-            <YAxis hide tickFormatter={(v) => formatAmount(v, symbol)} />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="income" name="Income" radius={[2, 2, 0, 0]} maxBarSize={24}>
-              {data.map((entry) => {
-                const isActive = !activeMonth || entry.fullMonth === activeMonth;
-                return <Cell key={entry.fullMonth} fill="#10b981" opacity={isActive ? 0.85 : 0.2} />;
-              })}
-            </Bar>
-            <Bar dataKey="expenses" name="Expenses" radius={[2, 2, 0, 0]} maxBarSize={24}>
-              {data.map((entry) => {
-                const isActive = !activeMonth || entry.fullMonth === activeMonth;
-                return <Cell key={entry.fullMonth} fill="#f43f5e" opacity={isActive ? 0.85 : 0.2} />;
-              })}
-            </Bar>
-            <Line dataKey="net" name="Net" stroke="#a78bfa" strokeWidth={1.5} dot={false} />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
+      <ResponsiveContainer width="100%" height={340}>
+        <ComposedChart
+          data={data}
+          margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+          onClick={(e: any) => {
+            if (e?.activePayload?.[0]?.payload?.fullMonth && onMonthClick) {
+              onMonthClick(e.activePayload[0].payload.fullMonth);
+            }
+          }}
+          style={{ cursor: onMonthClick ? "pointer" : "default" }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+          <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} />
+          <YAxis
+            yAxisId="left"
+            tick={{ fontSize: 10, fill: "#52525b" }}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={(v) => formatAmount(v, symbol)}
+            width={56}
+          />
+          <YAxis
+            yAxisId="right"
+            orientation="right"
+            tick={{ fontSize: 10, fill: "#52525b" }}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={(v) => formatAmount(v, symbol)}
+            width={56}
+          />
+          <Tooltip content={(props) => <CustomTooltip {...props} symbol={symbol} />} />
+          <Bar yAxisId="left" dataKey="income" name="Income" radius={[2, 2, 0, 0]} maxBarSize={28}>
+            {data.map((entry) => {
+              const isActive = !activeMonth || entry.fullMonth === activeMonth;
+              return <Cell key={entry.fullMonth} fill="#10b981" opacity={isActive ? 0.85 : 0.2} />;
+            })}
+          </Bar>
+          <Bar yAxisId="left" dataKey="expenses" name="Expenses" radius={[2, 2, 0, 0]} maxBarSize={28}>
+            {data.map((entry) => {
+              const isActive = !activeMonth || entry.fullMonth === activeMonth;
+              return <Cell key={entry.fullMonth} fill="#f43f5e" opacity={isActive ? 0.85 : 0.2} />;
+            })}
+          </Bar>
+          <Line yAxisId="right" type="monotone" dataKey="cumulative" name="Cumulative" stroke="#a78bfa" strokeWidth={2} dot={false} />
+        </ComposedChart>
+      </ResponsiveContainer>
     </div>
   );
 }

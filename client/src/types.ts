@@ -32,6 +32,12 @@ export interface Transaction {
   transactionDetailsType: string;
   invoiceLinks?: PdfLink[];
   remittanceLinks?: PdfLink[];
+  categories?: string[];
+}
+
+export interface CategoryEvent {
+  transferWiseId: string;
+  categories: string[];
 }
 
 export interface ApiResponse {

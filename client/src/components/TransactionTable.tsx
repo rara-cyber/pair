@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { Transaction, PdfLink as PdfLinkType, SortConfig } from "../types";
 import { PdfLink } from "./PdfLink";
+import { CategoryPicker } from "./CategoryPicker";
 import { CURRENCY_SYMBOLS } from "../hooks/useFxRates";
 
 type LinkFilter = "all" | "filled" | "empty";
@@ -15,6 +16,9 @@ interface Props {
   onDeleteLink: (transferWiseId: string, filename: string, type: "Sales" | "Expenses") => void;
   onManualMatch: (tx: Transaction) => void;
   highlightedTxIds?: Set<string>;
+  categories: string[];
+  onCategoryChange: (transferWiseId: string, categories: string[]) => void;
+  onAddCategory: (name: string) => void;
 }
 
 
@@ -28,6 +32,7 @@ const COLUMNS: { key: keyof Transaction; label: string; align?: string; defaultW
 ];
 
 const DOCS_DEFAULT_WIDTH = 128;
+const CATEGORY_DEFAULT_WIDTH = 144;
 
 function SortArrow({ column, sort }: { column: string; sort: SortConfig | null }) {
   if (!sort || sort.key !== column) return null;
@@ -50,11 +55,15 @@ export function TransactionTable({
   onDeleteLink,
   onManualMatch,
   highlightedTxIds,
+  categories,
+  onCategoryChange,
+  onAddCategory,
 }: Props) {
   const [colWidths, setColWidths] = useState<Record<string, number>>(() =>
     Object.fromEntries(COLUMNS.map((c) => [c.key, c.defaultWidth]))
   );
   const [docsWidth, setDocsWidth] = useState(DOCS_DEFAULT_WIDTH);
+  const [categoryWidth, setCategoryWidth] = useState(CATEGORY_DEFAULT_WIDTH);
 
   // Refs for the active drag
   const dragRef = useRef<{
@@ -62,13 +71,16 @@ export function TransactionTable({
     startX: number;
     startWidth: number;
     isDocs: boolean;
+    isCategory: boolean;
   } | null>(null);
 
   const onMouseMove = useCallback((e: MouseEvent) => {
     if (!dragRef.current) return;
     const delta = e.clientX - dragRef.current.startX;
     const newWidth = Math.max(60, dragRef.current.startWidth + delta);
-    if (dragRef.current.isDocs) {
+    if (dragRef.current.isCategory) {
+      setCategoryWidth(newWidth);
+    } else if (dragRef.current.isDocs) {
       setDocsWidth(newWidth);
     } else {
       setColWidths((prev) => ({ ...prev, [dragRef.current!.colKey]: newWidth }));
@@ -90,8 +102,8 @@ export function TransactionTable({
     };
   }, [onMouseMove, onMouseUp]);
 
-  const startResize = (colKey: string, startX: number, startWidth: number, isDocs = false) => {
-    dragRef.current = { colKey, startX, startWidth, isDocs };
+  const startResize = (colKey: string, startX: number, startWidth: number, isDocs = false, isCategory = false) => {
+    dragRef.current = { colKey, startX, startWidth, isDocs, isCategory };
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
   };
@@ -99,18 +111,13 @@ export function TransactionTable({
   return (
     <div
       style={{
-        overflowY: "auto",
+        overflow: "auto",
         maxHeight: "calc(100vh - 8rem)",
+        border: "1px solid var(--color-border-dim)",
+        borderRadius: "12px",
+        background: "var(--color-elev-1)",
       }}
     >
-      <div
-        style={{
-          border: "1px solid var(--color-border-dim)",
-          borderRadius: "12px",
-          background: "var(--color-elev-1)",
-          overflow: "hidden",
-        }}
-      >
         <table
           style={{
             width: "max-content",
@@ -131,6 +138,7 @@ export function TransactionTable({
                     width: colWidths[col.key],
                     position: "sticky",
                     top: 0,
+                    zIndex: 1,
                     background: "var(--color-elev-1)",
                     textAlign: "left",
                     fontFamily: "var(--font-mono)",
@@ -186,11 +194,69 @@ export function TransactionTable({
               ))}
 
               <th
+                style={{
+                  width: categoryWidth,
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 1,
+                  background: "var(--color-elev-1)",
+                  textAlign: "left",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "10px",
+                  fontWeight: 500,
+                  letterSpacing: "0.16em",
+                  textTransform: "uppercase",
+                  color: "var(--color-fg-subtle)",
+                  padding: "14px 14px",
+                  borderBottom: "1px solid var(--color-border-dim)",
+                  whiteSpace: "nowrap",
+                  userSelect: "none",
+                }}
+              >
+                Category
+                <span
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    startResize("_category", e.clientX, categoryWidth, false, true);
+                  }}
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: "2px",
+                    cursor: "col-resize",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span
+                    style={{
+                      width: "1px",
+                      height: "12px",
+                      background: "var(--color-border-dim)",
+                      transition: "background 120ms cubic-bezier(0.22, 1, 0.36, 1)",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "var(--color-fg-muted)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "var(--color-border-dim)";
+                    }}
+                  />
+                </span>
+              </th>
+
+              <th
                 onClick={onDocumentFilterCycle}
                 style={{
                   width: docsWidth,
                   position: "sticky",
                   top: 0,
+                  zIndex: 1,
                   background: "var(--color-elev-1)",
                   textAlign: "left",
                   fontFamily: "var(--font-mono)",
@@ -363,6 +429,21 @@ export function TransactionTable({
                 })}
                 <td
                   style={{
+                    width: categoryWidth,
+                    maxWidth: categoryWidth,
+                    padding: "12px 14px",
+                    borderBottom: "1px solid var(--color-border-faint)",
+                  }}
+                >
+                  <CategoryPicker
+                    value={tx.categories}
+                    categories={categories}
+                    onChange={(cats) => onCategoryChange(tx.transferWiseId, cats)}
+                    onAddCategory={onAddCategory}
+                  />
+                </td>
+                <td
+                  style={{
                     width: docsWidth,
                     maxWidth: docsWidth,
                     padding: "12px 14px",
@@ -380,6 +461,5 @@ export function TransactionTable({
         </tbody>
       </table>
     </div>
-  </div>
   );
 }

@@ -26,7 +26,7 @@ export function setModel(id: ModelId): void { currentModel = id; }
 
 let sessionApiCalls = 0;
 
-async function callLlm(prompt: string, maxTokens = 64): Promise<string> {
+export async function callLlm(prompt: string, maxTokens = 64): Promise<string> {
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import type { PdfLink, Transaction } from "../types";
+import type { PdfLink, Transaction, CategoryEvent } from "../types";
 
 export interface ProgressState {
   status: "idle" | "running" | "done";
@@ -18,10 +18,15 @@ export interface MatchEvent {
   link: PdfLink;
 }
 
-export function useProgress(onMatch?: (event: MatchEvent) => void) {
+export function useProgress(
+  onMatch?: (event: MatchEvent) => void,
+  onCategory?: (event: CategoryEvent) => void
+) {
   const [progress, setProgress] = useState<ProgressState | null>(null);
   const onMatchRef = useRef(onMatch);
   useEffect(() => { onMatchRef.current = onMatch; }, [onMatch]);
+  const onCategoryRef = useRef(onCategory);
+  useEffect(() => { onCategoryRef.current = onCategory; }, [onCategory]);
 
   useEffect(() => {
     let es: EventSource;
@@ -33,6 +38,7 @@ export function useProgress(onMatch?: (event: MatchEvent) => void) {
       es.addEventListener("match", (e) => {
         onMatchRef.current?.(JSON.parse((e as MessageEvent).data));
       });
+      es.addEventListener("category", (e) => onCategoryRef.current?.(JSON.parse((e as MessageEvent).data)));
       es.onerror = () => {
         es.close();
         retryTimer = setTimeout(connect, 3000);

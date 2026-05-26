@@ -5,7 +5,8 @@ import multer from "multer";
 import { parseAllCsvs } from "../services/csvParser";
 import { indexAllPdfs } from "../services/pdfIndexer";
 import { aiMatchTransactions, getModel, setModel, AVAILABLE_MODELS } from "../services/aiMatcher";
-import { deleteMatch, loadAllMatches, saveMatch } from "../services/db";
+import { deleteMatch, loadAllMatches, saveMatch, loadAllCategories, getCategoryList, addCategory, saveCategory } from "../services/db";
+import { categorizeTransactions } from "../services/categorizer";
 import { progressEmitter, currentProgress, emitMatch } from "../services/progress";
 import { extractPdfData } from "../services/pdfExtractor";
 import { readdirSync } from "fs";
@@ -23,8 +24,9 @@ let cachedData: {
 } | null = null;
 
 let loading: Promise<void> | null = null;
+let pendingCategorizeForce = false;
 
-async function loadData(forceRematch = false) {
+async function loadData(forceRematch = false, categorizeForce = false) {
   const transactions = parseAllCsvs();
 
   // On first load, set empty state immediately so the table can render while matching runs.
@@ -38,6 +40,20 @@ async function loadData(forceRematch = false) {
 
   const index = await indexAllPdfs(DATA_DIR);
   const matched = await aiMatchTransactions(transactions, index, DATA_DIR, forceRematch);
+
+  // (a) Merge persisted categories onto every transaction
+  const persistedCategories = new Map(loadAllCategories().map((r) => [r.transferWiseId, r.categories]));
+  for (const tx of matched) {
+    const cats = persistedCategories.get(tx.transferWiseId);
+    if (cats) tx.categories = cats;
+  }
+
+  // (b) Run LLM categorization for any uncategorized transactions, then merge results
+  const categoryMap = await categorizeTransactions(matched, { force: categorizeForce });
+  for (const tx of matched) {
+    const cats = categoryMap.get(tx.transferWiseId);
+    if (cats) tx.categories = cats;
+  }
 
   cachedData = {
     transactions: matched,
@@ -56,14 +72,17 @@ router.get("/progress", (req: Request, res: Response) => {
 
   const sendProgress = (data: object) => res.write(`event: progress\ndata: ${JSON.stringify(data)}\n\n`);
   const sendMatch = (data: object) => res.write(`event: match\ndata: ${JSON.stringify(data)}\n\n`);
+  const sendCategory = (data: object) => res.write(`event: category\ndata: ${JSON.stringify(data)}\n\n`);
 
   sendProgress(currentProgress);
 
   progressEmitter.on("update", sendProgress);
   progressEmitter.on("match", sendMatch);
+  progressEmitter.on("category", sendCategory);
   req.on("close", () => {
     progressEmitter.off("update", sendProgress);
     progressEmitter.off("match", sendMatch);
+    progressEmitter.off("category", sendCategory);
   });
 });
 
@@ -83,7 +102,8 @@ router.get("/transactions", async (req: Request, res: Response) => {
   const rematch = req.query.rematch === "true";
   // Always check for new dump files unless a load is already in progress
   if (!loading) {
-    loading = loadData(rematch).finally(() => { loading = null; });
+    const force = pendingCategorizeForce; pendingCategorizeForce = false;
+    loading = loadData(rematch, force).finally(() => { loading = null; });
   }
   if (!cachedData) await loading;
   res.json(cachedData);
@@ -105,7 +125,10 @@ router.post("/match-pdf", upload.single("file"), (req: Request, res: Response) =
 
   // Trigger matching pipeline; if already running, queue a new run after it finishes
   const triggerLoad = () => {
-    if (!loading) loading = loadData().finally(() => { loading = null; });
+    if (!loading) {
+      const force = pendingCategorizeForce; pendingCategorizeForce = false;
+      loading = loadData(false, force).finally(() => { loading = null; });
+    }
   };
   if (loading) loading.finally(triggerLoad);
   else triggerLoad();
@@ -271,6 +294,55 @@ router.post("/match-manual", (req: Request, res: Response) => {
   }
 
   res.json({ ok: true, pdfLink });
+});
+
+// ── Categories ──────────────────────────────────────────────────────────────
+
+router.get("/categories", (_req: Request, res: Response) => {
+  res.json({ categories: getCategoryList() });
+});
+
+router.post("/categories", (req: Request, res: Response) => {
+  const { name } = req.body as { name?: string };
+  if (!name || !name.trim()) {
+    res.status(400).json({ error: "name required" });
+    return;
+  }
+  addCategory(name.trim());
+  res.json({ categories: getCategoryList() });
+});
+
+router.post("/transaction/:transferWiseId/category", (req: Request, res: Response) => {
+  const { transferWiseId } = req.params;
+  const { categories } = req.body as { categories?: string[] };
+  if (!Array.isArray(categories)) {
+    res.status(400).json({ error: "categories array required" });
+    return;
+  }
+  const clean = Array.from(new Set(categories.map((c) => String(c).trim()).filter(Boolean))).slice(0, 3);
+  saveCategory({ transferWiseId, categories: clean, method: "manual" });
+  if (cachedData) {
+    const tx = cachedData.transactions.find((t) => t.transferWiseId === transferWiseId);
+    if (tx) tx.categories = clean;
+  }
+  res.json({ ok: true });
+});
+
+router.post("/categorize", (req: Request, res: Response) => {
+  const { force } = req.body as { force?: boolean };
+  if (force) pendingCategorizeForce = true;
+
+  // Trigger a load; if already running, queue a new run after it finishes
+  const triggerLoad = () => {
+    if (!loading) {
+      const f = pendingCategorizeForce; pendingCategorizeForce = false;
+      loading = loadData(false, f).finally(() => { loading = null; });
+    }
+  };
+  if (loading) loading.finally(triggerLoad);
+  else triggerLoad();
+
+  res.json({ queued: true });
 });
 
 export default router;
