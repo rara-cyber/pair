@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTransactions } from "./hooks/useTransactions";
 import { useProgress, type MatchEvent } from "./hooks/useProgress";
 import { useFxRates, convertAmount, CURRENCY_SYMBOLS } from "./hooks/useFxRates";
+import { useTheme } from "./hooks/useTheme";
 import { TransactionTable } from "./components/TransactionTable";
 import { FilterBar } from "./components/FilterBar";
 import { DateFilter } from "./components/DateFilter";
@@ -11,7 +12,8 @@ import { ProgressBadge } from "./components/ProgressBadge";
 import { ModelPicker } from "./components/ModelPicker";
 import { ManualMatchModal } from "./components/ManualMatchModal";
 import { ChartsView } from "./components/ChartsView";
-import type { Transaction, PdfLink } from "./types";
+import { ThemeToggle } from "./components/ui/ThemeToggle";
+import type { Transaction } from "./types";
 
 
 function fmtAmount(value: number, currency: string): string {
@@ -37,6 +39,7 @@ function App() {
   const [view, setView] = useState<"transactions" | "charts">("transactions");
   const [categories, setCategories] = useState<string[]>([]);
   const { rates, loading: ratesLoading, error: ratesError } = useFxRates();
+  const { theme, toggle: toggleTheme } = useTheme();
 
   useEffect(() => {
     fetch("/api/categories")
@@ -120,7 +123,7 @@ function App() {
     }
   }, [applyLiveMatch, allTransactions, scrollToTransaction, removeToast, removeHighlight]);
 
-  const handleManualMatched = useCallback((_pdfLink: PdfLink) => {
+  const handleManualMatched = useCallback((): void => {
     setManualMatchTx(null);
   }, []);
 
@@ -340,6 +343,7 @@ function App() {
 
           {/* Right: currency + model + progress */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <ThemeToggle theme={theme} toggle={toggleTheme} />
             <CurrencyPicker
               value={baseCurrency}
               currencies={availableCurrencies}
