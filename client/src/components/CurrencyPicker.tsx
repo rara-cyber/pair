@@ -1,3 +1,5 @@
+import { Select } from "./ui/Select";
+
 interface Props {
   value: string;
   currencies: string[];
@@ -11,29 +13,11 @@ export function CurrencyPicker({ value, currencies, loading, error, onChange }: 
 
   return (
     <div className="flex items-center gap-1.5">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        title="Base currency for KPI totals"
-        style={{
-          fontSize: "0.75rem",
-          background: "var(--card)",
-          border: "1px solid var(--input)",
-          color: "var(--foreground)",
-          borderRadius: "var(--radius-lg)",
-          padding: "0 0.5rem",
-          height: "2rem",
-          cursor: "pointer",
-          outline: "none",
-          transition: "border-color 120ms ease, box-shadow 120ms ease",
-        }}
-        onFocus={(e) => { e.currentTarget.style.boxShadow = "var(--ring-focus)"; }}
-        onBlur={(e) => { e.currentTarget.style.boxShadow = "none"; }}
-      >
+      <Select value={value} onChange={(e) => onChange(e.target.value)} title="Base currency for KPI totals">
         {currencies.map((c) => (
           <option key={c} value={c}>{c}</option>
         ))}
-      </select>
+      </Select>
       {loading && (
         <span style={{ fontSize: "0.625rem", color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>rates…</span>
       )}

@@ -12,6 +12,7 @@ import { ProgressBadge } from "./components/ProgressBadge";
 import { ModelPicker } from "./components/ModelPicker";
 import { ManualMatchModal } from "./components/ManualMatchModal";
 import { ThemeToggle } from "./components/ui/ThemeToggle";
+import { Select } from "./components/ui/Select";
 import { Dashboard } from "./components/Dashboard";
 import { FilterTabs } from "./components/ui/FilterTabs";
 import type { Transaction } from "./types";
@@ -333,21 +334,15 @@ function App() {
         leftContent={
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <DateFilter dateRange={dateRange} onChange={setDateRange} />
-            <select
+            <Select
               value=""
               onChange={(e) => { if (e.target.value) addFilter("_category", e.target.value); }}
-              className="text-xs px-2.5 py-1 transition-colors cursor-pointer focus:outline-none"
-              style={{ border: "1px solid var(--input)", background: "var(--card)", color: "var(--muted-foreground)", borderRadius: "var(--radius-lg)" }}
-              onFocus={(e) => { e.currentTarget.style.boxShadow = "var(--ring-focus)"; }}
-              onBlur={(e) => { e.currentTarget.style.boxShadow = "none"; }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--muted)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--card)"; }}
             >
               <option value="">All categories</option>
               {categories.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
-            </select>
+            </Select>
           </div>
         }
       />
