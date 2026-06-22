@@ -17,7 +17,7 @@ export function KpiTile({ label, value, delta, sub, onClick }: Props) {
       style={{
         padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.625rem",
         cursor: onClick ? "pointer" : undefined,
-        boxShadow: onClick && hovered ? "var(--shadow-popover)" : undefined,
+        boxShadow: onClick && hovered ? "var(--shadow-popover)" : "var(--ring-card)",
       }}
       onClick={onClick}
       onMouseEnter={onClick ? () => setHovered(true) : undefined}
