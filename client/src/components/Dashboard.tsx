@@ -5,7 +5,7 @@ import { Card, CardContent } from "./ui/Card";
 import { KpiTile } from "./ui/KpiTile";
 import { MilestoneLadder } from "./ui/MilestoneLadder";
 import { KpiTrendDialog } from "./ui/KpiTrendDialog";
-import { kpisFor, coverageLadder, monthlyNetLadder, monthlySeries } from "../lib/derive";
+import { kpisFor, coverageLadder, monthlySeries } from "../lib/derive";
 
 interface Props {
   transactions: Transaction[];
@@ -17,7 +17,6 @@ interface Props {
 export function Dashboard({ transactions, stats, baseCurrency, rates }: Props) {
   const kpis = useMemo(() => kpisFor(transactions, baseCurrency, rates), [transactions, baseCurrency, rates]);
   const coverage = useMemo(() => (stats ? coverageLadder(stats) : null), [stats]);
-  const netLadder = useMemo(() => monthlyNetLadder(transactions, baseCurrency, rates), [transactions, baseCurrency, rates]);
   const series = useMemo(() => monthlySeries(transactions, baseCurrency, rates), [transactions, baseCurrency, rates]);
   const [openMetric, setOpenMetric] = useState<null | "income" | "expenses" | "net">(null);
 
@@ -52,10 +51,9 @@ export function Dashboard({ transactions, stats, baseCurrency, rates }: Props) {
       <Card style={{ padding: "1.25rem" }}>
         <CardContent>
           <div style={{ fontFamily: "var(--font-heading)", fontSize: "16px", fontWeight: 500, marginBottom: "4px" }}>Coverage &amp; goals</div>
-          <div style={{ fontSize: "14px", color: "var(--muted-foreground)", marginBottom: "18px" }}>Document matching and monthly net milestones</div>
+          <div style={{ fontSize: "14px", color: "var(--muted-foreground)", marginBottom: "18px" }}>Document matching progress</div>
           <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
             {coverage && <MilestoneLadder {...coverage} />}
-            <MilestoneLadder {...netLadder} />
           </div>
         </CardContent>
       </Card>

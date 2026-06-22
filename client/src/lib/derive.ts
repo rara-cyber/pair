@@ -51,20 +51,24 @@ export function monthlyNet(txns: Transaction[], base: string, rates: FxRates | n
 }
 
 export interface LadderData {
-  title: string; unitLabel: string; current: string;
-  nextLabel?: string; pctToNext: number;
-  tiers: { label: string; status: "passed" | "next" | "upcoming"; reached?: string }[];
+  title: string;
+  unitLabel: string;
+  current: string;
+  nextLabel?: string;
+  pct: number;
+  pctToNext: number;
+  tiers: { label: string; value: number; status: "passed" | "next" | "upcoming"; reached?: string }[];
 }
 
 export function coverageLadder(stats: { total: number; withInvoice: number; withRemittance: number }): LadderData {
   const linked = stats.withInvoice + stats.withRemittance;
   const pct = stats.total > 0 ? (linked / stats.total) * 100 : 0;
-  const thresholds = [50, 75, 90, 100];
+  const thresholds = [25, 50, 75, 100];
   let nextSet = false;
   const tiers = thresholds.map((th) => {
-    if (pct >= th) return { label: `${th}%`, status: "passed" as const };
-    if (!nextSet) { nextSet = true; return { label: `${th}%`, status: "next" as const }; }
-    return { label: `${th}%`, status: "upcoming" as const };
+    if (pct >= th) return { label: `${th}%`, value: th, status: "passed" as const };
+    if (!nextSet) { nextSet = true; return { label: `${th}%`, value: th, status: "next" as const }; }
+    return { label: `${th}%`, value: th, status: "upcoming" as const };
   });
   const next = thresholds.find((th) => pct < th);
   return {
@@ -72,33 +76,8 @@ export function coverageLadder(stats: { total: number; withInvoice: number; with
     unitLabel: `${linked} of ${stats.total} linked`,
     current: `${Math.round(pct)}%`,
     nextLabel: next ? `${next}%` : undefined,
+    pct,
     pctToNext: next ? (pct / next) * 100 : 100,
-    tiers,
-  };
-}
-
-export function monthlyNetLadder(txns: Transaction[], base: string, rates: FxRates | null): LadderData {
-  const months = monthlyNet(txns, base, rates);
-  const best = months.length
-    ? months.reduce((m, x) => (x.net > m.net ? x : m))
-    : { month: "", net: 0 };
-  const thresholds = [1000, 2500, 5000, 10000]; // base-currency net milestones
-  let nextSet = false;
-  const tiers = thresholds.map((th) => {
-    if (best.net >= th) {
-      const firstHit = months.find((x) => x.net >= th);
-      return { label: fmtAbbrev(th, base), status: "passed" as const, reached: firstHit ? monthLabel(firstHit.month) : undefined };
-    }
-    if (!nextSet) { nextSet = true; return { label: fmtAbbrev(th, base), status: "next" as const }; }
-    return { label: fmtAbbrev(th, base), status: "upcoming" as const };
-  });
-  const next = thresholds.find((th) => best.net < th);
-  return {
-    title: "Monthly net",
-    unitLabel: "best month",
-    current: fmtAbbrev(best.net, base),
-    nextLabel: next ? fmtAbbrev(next, base) : undefined,
-    pctToNext: next ? (best.net / next) * 100 : 100,
     tiers,
   };
 }
