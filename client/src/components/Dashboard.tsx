@@ -31,9 +31,9 @@ export function Dashboard({ transactions, stats, baseCurrency, rates }: Props) {
       </header>
 
       <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "28px" }}>
-        <KpiTile label="Income · this month" value={kpis.income.value} delta={kpis.income.delta} sub={kpis.income.sub} />
-        <KpiTile label="Expenses · this month" value={kpis.expenses.value} delta={kpis.expenses.delta} sub={kpis.expenses.sub} />
-        <KpiTile label="Net · this month" value={kpis.net.value} delta={kpis.net.delta} sub={kpis.net.sub} />
+        <KpiTile label={`Income · ${kpis.period}`} value={kpis.income.value} delta={kpis.income.delta} sub={kpis.income.sub} />
+        <KpiTile label={`Expenses · ${kpis.period}`} value={kpis.expenses.value} delta={kpis.expenses.delta} sub={kpis.expenses.sub} />
+        <KpiTile label={`Net · ${kpis.period}`} value={kpis.net.value} delta={kpis.net.delta} sub={kpis.net.sub} />
       </section>
 
       <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: "14px" }}>Goals</div>

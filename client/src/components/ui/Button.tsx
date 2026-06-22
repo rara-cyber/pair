@@ -18,7 +18,7 @@ const VARIANTS: Record<Variant, CSSProperties> = {
   default: { background: "var(--primary)", color: "var(--primary-foreground)", border: "1px solid transparent" },
   outline: { background: "transparent", color: "var(--foreground)", border: "1px solid var(--border)" },
   ghost: { background: "transparent", color: "var(--foreground)", border: "1px solid transparent" },
-  destructive: { background: "var(--destructive)", color: "oklch(0.985 0 0)", border: "1px solid transparent" },
+  destructive: { background: "var(--destructive)", color: "var(--destructive-foreground)", border: "1px solid transparent" },
 };
 
 export function Button({ variant = "default", size = "default", style, onMouseDown, onMouseUp, ...rest }: Props) {

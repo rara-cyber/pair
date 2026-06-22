@@ -79,7 +79,9 @@ export function coverageLadder(stats: { total: number; withInvoice: number; with
 
 export function monthlyNetLadder(txns: Transaction[], base: string, rates: FxRates | null): LadderData {
   const months = monthlyNet(txns, base, rates);
-  const best = months.reduce((m, x) => (x.net > m.net ? x : m), { month: "", net: 0 });
+  const best = months.length
+    ? months.reduce((m, x) => (x.net > m.net ? x : m))
+    : { month: "", net: 0 };
   const thresholds = [1000, 2500, 5000, 10000]; // base-currency net milestones
   let nextSet = false;
   const tiers = thresholds.map((th) => {
@@ -103,7 +105,7 @@ export function monthlyNetLadder(txns: Transaction[], base: string, rates: FxRat
 
 export interface KpiData { value: string; delta: { value: string; positive: boolean } | null; sub: string; }
 
-export function kpisFor(txns: Transaction[], base: string, rates: FxRates | null): { income: KpiData; expenses: KpiData; net: KpiData } {
+export function kpisFor(txns: Transaction[], base: string, rates: FxRates | null): { income: KpiData; expenses: KpiData; net: KpiData; period: string } {
   const months = monthlyNet(txns, base, rates).map((m) => m.month);
   const uniq = months;
   const cur = uniq[uniq.length - 1];
@@ -119,8 +121,9 @@ export function kpisFor(txns: Transaction[], base: string, rates: FxRates | null
   };
 
   return {
-    income: { value: fmtAbbrev(curT.income, base), delta: pctDelta(curT.income, prevT?.income), sub: "this month" },
-    expenses: { value: fmtAbbrev(curT.expenses, base), delta: pctDelta(curT.expenses, prevT?.expenses), sub: "this month" },
+    income: { value: fmtAbbrev(curT.income, base), delta: pctDelta(curT.income, prevT?.income), sub: "" },
+    expenses: { value: fmtAbbrev(curT.expenses, base), delta: pctDelta(curT.expenses, prevT?.expenses), sub: "" },
     net: { value: fmtAbbrev(curT.net, base), delta: pctDelta(curT.net, prevT?.net), sub: "income − expenses" },
+    period: cur ? monthLabel(cur) : "—",
   };
 }
