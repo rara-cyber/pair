@@ -365,7 +365,7 @@ function App() {
         )}
         {!loading && view === "overview" && (
           <Dashboard
-            transactions={allTransactions}
+            transactions={transactions}
             stats={stats}
             baseCurrency={baseCurrency}
             rates={rates}

@@ -129,6 +129,45 @@ export interface CategoryMonthly {
   categories: string[];                          // categories present, sorted by total desc
 }
 
+export function categoryTotals(
+  txns: Transaction[],
+  base: string,
+  rates: FxRates | null,
+  direction: "income" | "expenses",
+): { name: string; amount: number; pct: number }[] {
+  const isIncome = direction === "income";
+  const totals = new Map<string, number>();
+  for (const t of txns) {
+    if (isIncome ? t.amount < 0 : t.amount >= 0) continue;
+    const v = Math.abs(convertAmount(t.amount, t.currency, base, rates));
+    const cat = t.categories && t.categories[0] ? t.categories[0] : "Uncategorized";
+    totals.set(cat, (totals.get(cat) ?? 0) + v);
+  }
+  const grand = [...totals.values()].reduce((s, x) => s + x, 0);
+  return [...totals.entries()]
+    .map(([name, amount]) => ({ name, amount, pct: grand > 0 ? (amount / grand) * 100 : 0 }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
+export function topMerchants(
+  txns: Transaction[],
+  base: string,
+  rates: FxRates | null,
+  limit = 8,
+): { name: string; amount: number }[] {
+  const totals = new Map<string, number>();
+  for (const t of txns) {
+    if (t.amount >= 0) continue; // expenses only
+    const name = t.merchant || t.payeeName || t.description || "Unknown";
+    totals.set(name, (totals.get(name) ?? 0) + Math.abs(convertAmount(t.amount, t.currency, base, rates)));
+  }
+  const sorted = [...totals.entries()].map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount);
+  if (sorted.length <= limit) return sorted;
+  const top = sorted.slice(0, limit);
+  const other = sorted.slice(limit).reduce((s, x) => s + x.amount, 0);
+  return [...top, { name: "Other", amount: other }];
+}
+
 export function categoryMonthly(
   txns: Transaction[],
   base: string,

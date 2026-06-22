@@ -7,6 +7,8 @@ import { MilestoneLadder } from "./ui/MilestoneLadder";
 import { KpiTrendDialog } from "./ui/KpiTrendDialog";
 import { kpisFor, coverageLadder, monthlySeries } from "../lib/derive";
 import { CategoryStackChart } from "./CategoryStackChart";
+import { CategoryDonut } from "./CategoryDonut";
+import { TopMerchantsChart } from "./TopMerchantsChart";
 
 interface Props {
   transactions: Transaction[];
@@ -52,6 +54,10 @@ export function Dashboard({ transactions, stats, baseCurrency, rates }: Props) {
 
       <div style={{ marginTop: "28px" }}>
         <CategoryStackChart transactions={transactions} baseCurrency={baseCurrency} rates={rates} />
+      </div>
+      <div style={{ marginTop: "12px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+        <CategoryDonut transactions={transactions} baseCurrency={baseCurrency} rates={rates} />
+        <TopMerchantsChart transactions={transactions} baseCurrency={baseCurrency} rates={rates} />
       </div>
     </div>
   );
