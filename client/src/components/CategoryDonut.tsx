@@ -12,6 +12,7 @@ interface Props { transactions: Transaction[]; baseCurrency: string; rates: FxRa
 
 export function CategoryDonut({ transactions, baseCurrency, rates }: Props) {
   const [mode, setMode] = useState<"income" | "expenses">("expenses");
+  const [hovering, setHovering] = useState(false);
   const all = useMemo(() => categoryTotals(transactions, baseCurrency, rates, mode), [transactions, baseCurrency, rates, mode]);
   // top 6 + Other for legibility
   const slices = useMemo(() => {
@@ -39,22 +40,25 @@ export function CategoryDonut({ transactions, baseCurrency, rates }: Props) {
         <div style={{ height: "240px", display: "grid", placeItems: "center", color: "var(--muted-foreground)", fontSize: "0.875rem" }}>No {mode} in range</div>
       ) : (
         <>
-          <div style={{ position: "relative" }}>
+          <div style={{ position: "relative" }} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
             <ResponsiveContainer width="100%" height={240}>
               <PieChart>
                 <Pie data={slices} dataKey="amount" nameKey="name" innerRadius="62%" outerRadius="88%" paddingAngle={1} stroke="var(--card)" strokeWidth={2}>
                   {slices.map((_, i) => <Cell key={i} fill={colorFor(i)} />)}
                 </Pie>
                 <Tooltip
+                  wrapperStyle={{ zIndex: 20 }}
                   contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-popover)", fontFamily: "var(--font-mono)", fontSize: 12 }}
                   formatter={(v, name) => [fmtAbbrev(Number(v ?? 0), baseCurrency), String(name ?? "")]}
                 />
               </PieChart>
             </ResponsiveContainer>
-            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: "1.25rem", fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>{fmtAbbrev(total, baseCurrency)}</div>
-              <div style={{ fontSize: "0.6875rem", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--muted-foreground)" }}>total</div>
-            </div>
+            {!hovering && (
+              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "1.25rem", fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>{fmtAbbrev(total, baseCurrency)}</div>
+                <div style={{ fontSize: "0.6875rem", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--muted-foreground)" }}>total</div>
+              </div>
+            )}
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", marginTop: "1rem" }}>
