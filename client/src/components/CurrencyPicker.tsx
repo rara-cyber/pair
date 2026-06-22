@@ -39,7 +39,7 @@ export function CurrencyPicker({ value, currencies, loading, error, onChange }: 
       )}
       {error && (
         <span
-          style={{ fontSize: "0.625rem", color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}
+          style={{ fontSize: "0.625rem", color: "var(--destructive)", textTransform: "uppercase", letterSpacing: "0.05em" }}
           title="FX rates unavailable — totals may be in mixed currencies"
         >no fx</span>
       )}

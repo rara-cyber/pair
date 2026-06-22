@@ -48,6 +48,8 @@ export function CategoryPicker({ value, categories, onChange, onAddCategory }: P
     <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
       <button
         onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--muted)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "var(--card)"; }}
         style={{
           display: "flex",
           alignItems: "center",
@@ -59,7 +61,7 @@ export function CategoryPicker({ value, categories, onChange, onAddCategory }: P
           height: "2rem",
           borderRadius: "var(--radius-lg)",
           border: selected.length ? "1px solid var(--border)" : "1px solid var(--input)",
-          background: selected.length ? "var(--card)" : "var(--muted)",
+          background: "var(--card)",
           color: selected.length ? "var(--foreground)" : "var(--muted-foreground)",
           cursor: "pointer",
           textAlign: "left",

@@ -50,7 +50,7 @@ function PdfCard({
         textAlign: "left",
         padding: "0.75rem 1rem",
         borderRadius: "var(--radius-lg)",
-        border: selected ? "1px solid var(--border)" : "1px solid var(--border)",
+        border: selected ? "1px solid var(--border)" : "1px solid transparent",
         background: selected ? "var(--secondary)" : "transparent",
         cursor: "pointer",
         transition: "background 120ms ease, border-color 120ms ease",
