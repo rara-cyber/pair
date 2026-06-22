@@ -244,21 +244,6 @@ function App() {
                   </svg>
                 </span>
                 <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '15px', letterSpacing: '0.01em', color: 'var(--foreground)' }}>Pair</span>
-                <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '10px',
-                  letterSpacing: '0.2em', textTransform: 'uppercase',
-                  color: 'var(--positive)',
-                  display: 'inline-flex', alignItems: 'center', gap: '6px',
-                  paddingLeft: '10px', marginLeft: '2px',
-                  borderLeft: '1px solid var(--border)'
-                }}>
-                  <span style={{
-                    width: '6px', height: '6px', borderRadius: '50%',
-                    background: 'var(--positive)',
-                    animation: 'pulse 1.6s ease-out infinite'
-                  }}></span>
-                  <span>Live</span>
-                </span>
               </div>
 
               {/* View tabs */}
