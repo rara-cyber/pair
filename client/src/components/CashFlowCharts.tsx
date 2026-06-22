@@ -226,7 +226,7 @@ export function CashFlowCharts({ transactions, onMonthClick, activeMonth, baseCu
               return (
                 <Cell
                   key={entry.fullMonth}
-                  fill={isActive ? "var(--chart-1)" : "var(--chart-1)"}
+                  fill="var(--chart-1)"
                   opacity={isActive ? 0.85 : 0.25}
                 />
               );
@@ -239,7 +239,7 @@ export function CashFlowCharts({ transactions, onMonthClick, activeMonth, baseCu
               return (
                 <Cell
                   key={entry.fullMonth}
-                  fill={isActive ? "var(--chart-4)" : "var(--chart-4)"}
+                  fill="var(--chart-4)"
                   opacity={isActive ? 0.85 : 0.25}
                 />
               );
