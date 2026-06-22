@@ -1,22 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTransactions } from "./hooks/useTransactions";
 import { useProgress, type MatchEvent } from "./hooks/useProgress";
-import { useFxRates } from "./hooks/useFxRates";
+import { useFxRates, convertAmount, CURRENCY_SYMBOLS } from "./hooks/useFxRates";
 import { useTheme } from "./hooks/useTheme";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 import { TransactionTable } from "./components/TransactionTable";
 import { FilterBar } from "./components/FilterBar";
 import { DateFilter } from "./components/DateFilter";
-import { CurrencyPicker } from "./components/CurrencyPicker";
 import { DropZone } from "./components/DropZone";
 import { ProgressBadge } from "./components/ProgressBadge";
-import { ModelPicker } from "./components/ModelPicker";
 import { ManualMatchModal } from "./components/ManualMatchModal";
 import { ThemeToggle } from "./components/ui/ThemeToggle";
 import { Select } from "./components/ui/Select";
 import { Dashboard } from "./components/Dashboard";
 import { FilterTabs } from "./components/ui/FilterTabs";
-import { HeaderControlsMenu } from "./components/HeaderControlsMenu";
+import { Settings } from "./components/Settings";
 import type { Transaction } from "./types";
 
 
@@ -28,12 +26,19 @@ interface MatchToast {
 
 let toastId = 0;
 
+function fmtAmount(value: number, currency: string): string {
+  const sym = CURRENCY_SYMBOLS[currency] ?? `${currency} `;
+  const abs = Math.abs(value);
+  if (abs >= 1000) return `${sym}${(value / 1000).toFixed(1)}k`;
+  return `${sym}${value.toFixed(0)}`;
+}
+
 function App() {
   const [toasts, setToasts] = useState<MatchToast[]>([]);
   const [manualMatchTx, setManualMatchTx] = useState<Transaction | null>(null);
   const [highlightedTxIds, setHighlightedTxIds] = useState<Set<string>>(new Set());
   const [baseCurrency, setBaseCurrency] = useState("EUR");
-  const [view, setView] = useState<"overview" | "transactions">("overview");
+  const [view, setView] = useState<"overview" | "transactions" | "settings">("overview");
   const [categories, setCategories] = useState<string[]>([]);
   const { rates, loading: ratesLoading, error: ratesError } = useFxRates();
   const { theme, toggle: toggleTheme } = useTheme();
@@ -82,6 +87,7 @@ function App() {
     clearFilters,
     documentFilter,
     cycleDocumentFilter,
+    setDocFilter,
     deleteLink,
     applyLiveMatch,
     applyCategory,
@@ -119,6 +125,14 @@ function App() {
   }, []);
 
   const progress = useProgress(handleMatch, applyCategory);
+
+  const linked = stats ? stats.withInvoice + stats.withRemittance : 0;
+  const missing = stats ? stats.total - linked : 0;
+
+  const toBase = (t: Transaction) => convertAmount(t.amount, t.currency, baseCurrency, rates);
+  const income = transactions.filter((t) => t.amount >= 0).reduce((s, t) => s + toBase(t), 0);
+  const expenses = transactions.filter((t) => t.amount < 0).reduce((s, t) => s + toBase(t), 0);
+  const net = income + expenses;
 
   // Unique currencies present in the loaded data for the picker
   const availableCurrencies = useMemo(() => {
@@ -184,47 +198,26 @@ function App() {
         }}
       >
         {isCompact ? (
-          /* Compact header: brand + tabs + ⋯ menu */
-          <div style={{ height: '56px', padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-            {/* Left: compact brand + tabs */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-              <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: '18px', letterSpacing: '0.02em', color: 'var(--foreground)', flexShrink: 0 }}>SIÁN</span>
-              <span style={{ width: '1px', height: '18px', background: 'var(--border)', flexShrink: 0 }}></span>
-              <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '15px', letterSpacing: '0.01em', color: 'var(--foreground)', flexShrink: 0 }}>Pair</span>
-              <FilterTabs
-                tabs={[
-                  { value: "overview", label: "Overview" },
-                  { value: "transactions", label: "Transactions" },
-                ]}
-                value={view}
-                onChange={setView}
-              />
-            </div>
-            {/* Right: ⋯ menu */}
-            <HeaderControlsMenu>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>Theme</span>
+          /* Compact header: two-row layout */
+          <div style={{ padding: '8px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: '18px', letterSpacing: '0.02em', color: 'var(--foreground)' }}>SIÁN</span>
+                <span style={{ width: '1px', height: '18px', background: 'var(--border)' }} />
+                <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '15px', color: 'var(--foreground)' }}>Pair</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <ThemeToggle theme={theme} toggle={toggleTheme} />
+                <ProgressBadge progress={progress} />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>Currency</span>
-                <CurrencyPicker
-                  value={baseCurrency}
-                  currencies={availableCurrencies}
-                  loading={ratesLoading}
-                  error={ratesError}
-                  onChange={setBaseCurrency}
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>Model</span>
-                <ModelPicker />
-              </div>
-            </HeaderControlsMenu>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <FilterTabs tabs={[{ value: "overview", label: "Overview" }, { value: "transactions", label: "Transactions" }, { value: "settings", label: "Settings" }]} value={view} onChange={setView} />
+            </div>
           </div>
         ) : (
-          /* Full desktop header */
-          <div style={{ height: '72px', padding: '0 24px', maxWidth: 'var(--container-max)', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px' }}>
+          /* Full desktop header: 3-column grid */
+          <div style={{ height: '72px', padding: '0 24px', maxWidth: 'var(--container-max)', margin: '0 auto', display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: '16px' }}>
             {/* Left: branding + tabs */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
               {/* SIÁN brand */}
@@ -273,48 +266,95 @@ function App() {
                 tabs={[
                   { value: "overview", label: "Overview" },
                   { value: "transactions", label: "Transactions" },
+                  { value: "settings", label: "Settings" },
                 ]}
                 value={view}
                 onChange={setView}
               />
             </div>
 
-            {/* Right: currency + model + progress */}
+            {/* Center: KPI strip */}
+            {stats && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{stats.total}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px' }}>Tx</span>
+                </div>
+                <span style={{ width: '1px', height: '28px', background: 'var(--border)' }}></span>
+
+                <button
+                  onClick={() => setDocFilter(documentFilter === "filled" ? "all" : "filled")}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', border: 'none', background: 'none', color: 'inherit' }}
+                >
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{linked}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px' }}>Linked</span>
+                </button>
+                <span style={{ width: '1px', height: '28px', background: 'var(--border)' }}></span>
+
+                <button
+                  onClick={() => setDocFilter(documentFilter === "empty" ? "all" : "empty")}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', border: 'none', background: 'none', color: 'inherit' }}
+                >
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{missing}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px' }}>Missing</span>
+                </button>
+                <span style={{ width: '1px', height: '28px', background: 'var(--border)' }}></span>
+
+                <button
+                  onClick={() => addFilter("_direction", "income")}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', border: 'none', background: 'none', color: 'inherit' }}
+                >
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(income, baseCurrency)}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px' }}>Income</span>
+                </button>
+                <span style={{ width: '1px', height: '28px', background: 'var(--border)' }}></span>
+
+                <button
+                  onClick={() => addFilter("_direction", "expense")}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', border: 'none', background: 'none', color: 'inherit' }}
+                >
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(expenses, baseCurrency)}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px' }}>Expenses</span>
+                </button>
+                <span style={{ width: '1px', height: '28px', background: 'var(--border)' }}></span>
+
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: net >= 0 ? 'var(--positive)' : 'var(--negative)', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(net, baseCurrency)}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px' }}>Net</span>
+                </div>
+              </div>
+            )}
+
+            {/* Right: theme + progress only */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <ThemeToggle theme={theme} toggle={toggleTheme} />
-              <CurrencyPicker
-                value={baseCurrency}
-                currencies={availableCurrencies}
-                loading={ratesLoading}
-                error={ratesError}
-                onChange={setBaseCurrency}
-              />
-              <ModelPicker />
               <ProgressBadge progress={progress} />
             </div>
           </div>
         )}
       </header>
 
-      <FilterBar
-        filters={filters}
-        onRemove={removeFilter}
-        onClear={clearFilters}
-        leftContent={
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <DateFilter dateRange={dateRange} onChange={setDateRange} />
-            <Select
-              value=""
-              onChange={(e) => { if (e.target.value) addFilter("_category", e.target.value); }}
-            >
-              <option value="">All categories</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </Select>
-          </div>
-        }
-      />
+      {view !== "settings" && (
+        <FilterBar
+          filters={filters}
+          onRemove={removeFilter}
+          onClear={clearFilters}
+          leftContent={
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <DateFilter dateRange={dateRange} onChange={setDateRange} />
+              <Select
+                value=""
+                onChange={(e) => { if (e.target.value) addFilter("_category", e.target.value); }}
+              >
+                <option value="">All categories</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </Select>
+            </div>
+          }
+        />
+      )}
 
       <main>
         {error && (
@@ -351,7 +391,15 @@ function App() {
             onAddCategory={addCategory}
           />
         )}
-
+        {!loading && view === "settings" && (
+          <Settings
+            baseCurrency={baseCurrency}
+            currencies={availableCurrencies}
+            ratesLoading={ratesLoading}
+            ratesError={ratesError}
+            onCurrencyChange={setBaseCurrency}
+          />
+        )}
       </main>
 
       {manualMatchTx && (
