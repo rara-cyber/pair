@@ -64,6 +64,16 @@ function buildMonthlyData(
   });
 }
 
+const tooltipStyle: React.CSSProperties = {
+  background: "var(--popover)",
+  border: "1px solid var(--border)",
+  boxShadow: "var(--shadow-popover)",
+  borderRadius: "var(--radius-xl)",
+  padding: "8px 12px",
+  minWidth: 160,
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CustomTooltip = ({ active, payload, label, symbol }: any) => {
   if (!active || !payload?.length) return null;
   const p = payload[0].payload as {
@@ -73,23 +83,36 @@ const CustomTooltip = ({ active, payload, label, symbol }: any) => {
     cumulative: number;
   };
   return (
-    <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs shadow-lg min-w-[160px]">
-      <div className="font-medium text-zinc-200 mb-1">{label}</div>
-      <div className="flex justify-between gap-4 text-emerald-400">
+    <div style={tooltipStyle}>
+      <div
+        className="text-xs font-medium mb-1"
+        style={{ color: "var(--popover-foreground)" }}
+      >
+        {label}
+      </div>
+      <div className="text-xs flex justify-between gap-4" style={{ color: "var(--muted-foreground)" }}>
         <span>Income</span>
-        <span className="font-mono">{formatAmount(p.income, symbol)}</span>
+        <span className="font-mono" style={{ color: "var(--popover-foreground)" }}>
+          {formatAmount(p.income, symbol)}
+        </span>
       </div>
-      <div className="flex justify-between gap-4 text-red-400">
+      <div className="text-xs flex justify-between gap-4" style={{ color: "var(--muted-foreground)" }}>
         <span>Expenses</span>
-        <span className="font-mono">{formatAmount(p.expenses, symbol)}</span>
+        <span className="font-mono" style={{ color: "var(--popover-foreground)" }}>
+          {formatAmount(p.expenses, symbol)}
+        </span>
       </div>
-      <div className={`flex justify-between gap-4 ${p.net >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+      <div className="text-xs flex justify-between gap-4" style={{ color: "var(--muted-foreground)" }}>
         <span>Net</span>
-        <span className="font-mono">{formatAmount(p.net, symbol)}</span>
+        <span className="font-mono" style={{ color: "var(--popover-foreground)" }}>
+          {p.net >= 0 ? "+" : ""}{formatAmount(p.net, symbol)}
+        </span>
       </div>
-      <div className="flex justify-between gap-4 text-violet-400">
+      <div className="text-xs flex justify-between gap-4" style={{ color: "var(--muted-foreground)" }}>
         <span>Cumulative</span>
-        <span className="font-mono">{formatAmount(p.cumulative, symbol)}</span>
+        <span className="font-mono" style={{ color: "var(--popover-foreground)" }}>
+          {formatAmount(p.cumulative, symbol)}
+        </span>
       </div>
     </div>
   );
@@ -104,24 +127,56 @@ export function CashFlowCharts({ transactions, onMonthClick, activeMonth, baseCu
   const totalNet      = totalIncome - totalExpenses;
 
   return (
-    <div className="px-6 py-4 border-b border-zinc-800">
+    <div
+      className="px-6 py-4"
+      style={{
+        borderBottom: "1px solid var(--border)",
+        background: "var(--card)",
+        boxShadow: "var(--ring-card)",
+        borderRadius: "var(--radius-xl)",
+      }}
+    >
       {/* Summary — horizontal row above the chart */}
       <div className="flex gap-8 mb-4">
         <div>
-          <div className="text-[11px] text-zinc-500 uppercase tracking-wider mb-1">Income</div>
-          <div className="text-2xl font-bold text-emerald-400 tabular-nums leading-none">
+          <div
+            className="text-[11px] uppercase tracking-wider mb-1"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            Income
+          </div>
+          <div
+            className="text-2xl font-bold tabular-nums leading-none"
+            style={{ color: "var(--foreground)" }}
+          >
             {formatAmount(totalIncome, symbol)}
           </div>
         </div>
         <div>
-          <div className="text-[11px] text-zinc-500 uppercase tracking-wider mb-1">Expenses</div>
-          <div className="text-2xl font-bold text-red-400 tabular-nums leading-none">
+          <div
+            className="text-[11px] uppercase tracking-wider mb-1"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            Expenses
+          </div>
+          <div
+            className="text-2xl font-bold tabular-nums leading-none"
+            style={{ color: "var(--foreground)" }}
+          >
             {formatAmount(totalExpenses, symbol)}
           </div>
         </div>
         <div>
-          <div className="text-[11px] text-zinc-500 uppercase tracking-wider mb-1">Net</div>
-          <div className={`text-2xl font-bold tabular-nums leading-none ${totalNet >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+          <div
+            className="text-[11px] uppercase tracking-wider mb-1"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            Net
+          </div>
+          <div
+            className="text-2xl font-bold tabular-nums leading-none"
+            style={{ color: "var(--foreground)" }}
+          >
             {totalNet >= 0 ? "+" : ""}{formatAmount(totalNet, symbol)}
           </div>
         </div>
@@ -132,18 +187,23 @@ export function CashFlowCharts({ transactions, onMonthClick, activeMonth, baseCu
         <ComposedChart
           data={data}
           margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-          onClick={(e: any) => {
+          onClick={(e: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
             if (e?.activePayload?.[0]?.payload?.fullMonth && onMonthClick) {
               onMonthClick(e.activePayload[0].payload.fullMonth);
             }
           }}
           style={{ cursor: onMonthClick ? "pointer" : "default" }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-          <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#52525b" }} axisLine={false} tickLine={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+          <XAxis
+            dataKey="month"
+            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+            axisLine={false}
+            tickLine={false}
+          />
           <YAxis
             yAxisId="left"
-            tick={{ fontSize: 10, fill: "#52525b" }}
+            tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
             axisLine={false}
             tickLine={false}
             tickFormatter={(v) => formatAmount(v, symbol)}
@@ -152,26 +212,49 @@ export function CashFlowCharts({ transactions, onMonthClick, activeMonth, baseCu
           <YAxis
             yAxisId="right"
             orientation="right"
-            tick={{ fontSize: 10, fill: "#52525b" }}
+            tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
             axisLine={false}
             tickLine={false}
             tickFormatter={(v) => formatAmount(v, symbol)}
             width={56}
           />
           <Tooltip content={(props) => <CustomTooltip {...props} symbol={symbol} />} />
+          {/* Income bars — lighter step (chart-1) */}
           <Bar yAxisId="left" dataKey="income" name="Income" radius={[2, 2, 0, 0]} maxBarSize={28}>
             {data.map((entry) => {
               const isActive = !activeMonth || entry.fullMonth === activeMonth;
-              return <Cell key={entry.fullMonth} fill="#10b981" opacity={isActive ? 0.85 : 0.2} />;
+              return (
+                <Cell
+                  key={entry.fullMonth}
+                  fill={isActive ? "var(--chart-1)" : "var(--chart-1)"}
+                  opacity={isActive ? 0.85 : 0.25}
+                />
+              );
             })}
           </Bar>
+          {/* Expenses bars — mid-dark step (chart-4) */}
           <Bar yAxisId="left" dataKey="expenses" name="Expenses" radius={[2, 2, 0, 0]} maxBarSize={28}>
             {data.map((entry) => {
               const isActive = !activeMonth || entry.fullMonth === activeMonth;
-              return <Cell key={entry.fullMonth} fill="#f43f5e" opacity={isActive ? 0.85 : 0.2} />;
+              return (
+                <Cell
+                  key={entry.fullMonth}
+                  fill={isActive ? "var(--chart-4)" : "var(--chart-4)"}
+                  opacity={isActive ? 0.85 : 0.25}
+                />
+              );
             })}
           </Bar>
-          <Line yAxisId="right" type="monotone" dataKey="cumulative" name="Cumulative" stroke="#a78bfa" strokeWidth={2} dot={false} />
+          {/* Cumulative line — darkest step (chart-5) */}
+          <Line
+            yAxisId="right"
+            type="monotone"
+            dataKey="cumulative"
+            name="Cumulative"
+            stroke="var(--chart-5)"
+            strokeWidth={2}
+            dot={false}
+          />
         </ComposedChart>
       </ResponsiveContainer>
     </div>

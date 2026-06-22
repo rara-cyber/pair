@@ -13,7 +13,7 @@ interface Props {
 export function ChartsView({ transactions, baseCurrency, rates, onMonthClick, activeMonth }: Props) {
   if (transactions.length === 0) {
     return (
-      <div className="px-6 py-20 text-center text-zinc-500 text-sm">
+      <div className="px-6 py-20 text-center text-sm" style={{ color: "var(--muted-foreground)" }}>
         No transactions match the current filters.
       </div>
     );
