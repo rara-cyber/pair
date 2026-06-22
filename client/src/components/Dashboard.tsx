@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import type { Transaction } from "../types";
 import { type FxRates } from "../hooks/useFxRates";
-import { Card, CardContent } from "./ui/Card";
+import { Card } from "./ui/Card";
 import { KpiTile } from "./ui/KpiTile";
 import { MilestoneLadder } from "./ui/MilestoneLadder";
 import { KpiTrendDialog } from "./ui/KpiTrendDialog";
 import { kpisFor, coverageLadder, monthlySeries } from "../lib/derive";
+import { CategoryStackChart } from "./CategoryStackChart";
 
 interface Props {
   transactions: Transaction[];
@@ -32,10 +33,13 @@ export function Dashboard({ transactions, stats, baseCurrency, rates }: Props) {
         </div>
       </header>
 
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "28px" }}>
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "28px" }}>
         <KpiTile label={`Income · ${kpis.period}`} value={kpis.income.value} delta={kpis.income.delta} sub={kpis.income.sub} onClick={() => setOpenMetric("income")} />
         <KpiTile label={`Expenses · ${kpis.period}`} value={kpis.expenses.value} delta={kpis.expenses.delta} sub={kpis.expenses.sub} onClick={() => setOpenMetric("expenses")} />
         <KpiTile label={`Net · ${kpis.period}`} value={kpis.net.value} delta={kpis.net.delta} sub={kpis.net.sub} onClick={() => setOpenMetric("net")} />
+        <Card style={{ padding: "1.25rem" }}>
+          {coverage && <MilestoneLadder {...coverage} />}
+        </Card>
       </section>
 
       <KpiTrendDialog
@@ -46,17 +50,9 @@ export function Dashboard({ transactions, stats, baseCurrency, rates }: Props) {
         series={series}
       />
 
-      <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: "14px" }}>Goals</div>
-
-      <Card style={{ padding: "1.25rem" }}>
-        <CardContent>
-          <div style={{ fontFamily: "var(--font-heading)", fontSize: "16px", fontWeight: 500, marginBottom: "4px" }}>Coverage &amp; goals</div>
-          <div style={{ fontSize: "14px", color: "var(--muted-foreground)", marginBottom: "18px" }}>Document matching progress</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-            {coverage && <MilestoneLadder {...coverage} />}
-          </div>
-        </CardContent>
-      </Card>
+      <div style={{ marginTop: "28px" }}>
+        <CategoryStackChart transactions={transactions} baseCurrency={baseCurrency} rates={rates} />
+      </div>
     </div>
   );
 }

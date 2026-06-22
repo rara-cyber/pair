@@ -11,7 +11,6 @@ import { DropZone } from "./components/DropZone";
 import { ProgressBadge } from "./components/ProgressBadge";
 import { ModelPicker } from "./components/ModelPicker";
 import { ManualMatchModal } from "./components/ManualMatchModal";
-import { ChartsView } from "./components/ChartsView";
 import { ThemeToggle } from "./components/ui/ThemeToggle";
 import { Dashboard } from "./components/Dashboard";
 import { FilterTabs } from "./components/ui/FilterTabs";
@@ -38,7 +37,7 @@ function App() {
   const [manualMatchTx, setManualMatchTx] = useState<Transaction | null>(null);
   const [highlightedTxIds, setHighlightedTxIds] = useState<Set<string>>(new Set());
   const [baseCurrency, setBaseCurrency] = useState("EUR");
-  const [view, setView] = useState<"overview" | "transactions" | "charts">("overview");
+  const [view, setView] = useState<"overview" | "transactions">("overview");
   const [categories, setCategories] = useState<string[]>([]);
   const { rates, loading: ratesLoading, error: ratesError } = useFxRates();
   const { theme, toggle: toggleTheme } = useTheme();
@@ -93,13 +92,7 @@ function App() {
     updateCategory,
     dateRange,
     setDateRange,
-    filterByMonth,
   } = useTransactions();
-
-  const activeMonth = useMemo(
-    () => filters.find((f) => f.key === "_month")?.value ?? null,
-    [filters]
-  );
 
   const scrollToTransaction = useCallback((txId: string) => {
     setTimeout(() => {
@@ -251,7 +244,6 @@ function App() {
               tabs={[
                 { value: "overview", label: "Overview" },
                 { value: "transactions", label: "Transactions" },
-                { value: "charts", label: "Charts" },
               ]}
               value={view}
               onChange={setView}
@@ -395,15 +387,7 @@ function App() {
             onAddCategory={addCategory}
           />
         )}
-        {!loading && view === "charts" && (
-          <ChartsView
-            transactions={transactions}
-            baseCurrency={baseCurrency}
-            rates={rates}
-            onMonthClick={filterByMonth}
-            activeMonth={activeMonth}
-          />
-        )}
+
       </main>
 
       {manualMatchTx && (

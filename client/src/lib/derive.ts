@@ -123,3 +123,38 @@ export function kpisFor(txns: Transaction[], base: string, rates: FxRates | null
     period: cur ? monthLabel(cur) : "—",
   };
 }
+
+export interface CategoryMonthly {
+  data: Array<Record<string, string | number>>; // each row: { key, label, total, [category]: amount }
+  categories: string[];                          // categories present, sorted by total desc
+}
+
+export function categoryMonthly(
+  txns: Transaction[],
+  base: string,
+  rates: FxRates | null,
+  direction: "income" | "expenses",
+): CategoryMonthly {
+  const isIncome = direction === "income";
+  const months = new Map<string, Record<string, number>>();
+  const totals = new Map<string, number>();
+  for (const t of txns) {
+    if (isIncome ? t.amount < 0 : t.amount >= 0) continue;
+    const k = monthKey(t);
+    if (k === "unknown") continue;
+    const v = Math.abs(convertAmount(t.amount, t.currency, base, rates));
+    const cat = t.categories && t.categories[0] ? t.categories[0] : "Uncategorized";
+    const row = months.get(k) ?? {};
+    row[cat] = (row[cat] ?? 0) + v;
+    months.set(k, row);
+    totals.set(cat, (totals.get(cat) ?? 0) + v);
+  }
+  const categories = [...totals.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c);
+  const data = [...months.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([key, row]) => {
+      const total = Object.values(row).reduce((s, x) => s + x, 0);
+      return { key, label: monthLabel(key), total, ...row };
+    });
+  return { data, categories };
+}
