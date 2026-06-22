@@ -54,26 +54,6 @@
   --shadow-dialog: 0 10px 30px -10px rgb(0 0 0 / 0.18);
   --container-max: 72rem;
 
-  /* ---- TEMPORARY legacy aliases — removed in Task 12 ------------------- */
-  --color-bg: var(--background);
-  --color-dark: var(--background);
-  --color-fg: var(--foreground);
-  --color-white: var(--foreground);
-  --color-fg-muted: var(--muted-foreground);
-  --color-fg-subtle: var(--muted-foreground);
-  --color-elev-1: var(--card);
-  --color-elev-2: var(--muted);
-  --color-border-dim: var(--border);
-  --color-border-faint: var(--border);
-  --color-danger: var(--destructive);
-  --color-danger-soft: color-mix(in oklab, var(--destructive) 14%, transparent);
-  --color-warn: var(--muted-foreground);
-  --color-accent: var(--foreground);
-  --color-accent-90: color-mix(in oklab, var(--foreground) 90%, transparent);
-  --color-accent-25: color-mix(in oklab, var(--foreground) 25%, transparent);
-  --color-accent-10: color-mix(in oklab, var(--foreground) 10%, transparent);
-  --color-accent-06: color-mix(in oklab, var(--foreground) 6%, transparent);
-  --font-serif: var(--font-sans);
 }
 
 /* ---- DS tokens — dark --------------------------------------------------- */

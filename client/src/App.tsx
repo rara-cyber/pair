@@ -147,7 +147,7 @@ function App() {
   const net = income + expenses;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
       <DropZone />
 
       {/* Match toast notifications */}
@@ -344,7 +344,12 @@ function App() {
             <select
               value=""
               onChange={(e) => { if (e.target.value) addFilter("_category", e.target.value); }}
-              className="text-xs px-2.5 py-1 rounded border border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200 transition-colors cursor-pointer focus:outline-none"
+              className="text-xs px-2.5 py-1 transition-colors cursor-pointer focus:outline-none"
+              style={{ border: "1px solid var(--input)", background: "var(--card)", color: "var(--muted-foreground)", borderRadius: "var(--radius-lg)" }}
+              onFocus={(e) => { e.currentTarget.style.boxShadow = "var(--ring-focus)"; }}
+              onBlur={(e) => { e.currentTarget.style.boxShadow = "none"; }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--muted)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--card)"; }}
             >
               <option value="">All categories</option>
               {categories.map((c) => (
@@ -357,12 +362,12 @@ function App() {
 
       <main>
         {error && (
-          <div className="flex items-center justify-center py-20 text-red-400">
+          <div className="flex items-center justify-center py-20" style={{ color: "var(--destructive)" }}>
             Error: {error}
           </div>
         )}
         {loading && !transactions.length && (
-          <div className="flex items-center justify-center py-20 text-zinc-500 text-sm">
+          <div className="flex items-center justify-center py-20 text-sm" style={{ color: "var(--muted-foreground)" }}>
             Loading transactions…
           </div>
         )}
