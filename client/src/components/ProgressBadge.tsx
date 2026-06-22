@@ -38,7 +38,7 @@ export function ProgressBadge({ progress }: { progress: ProgressState | null }) 
           <div
             style={{
               fontSize: "10px",
-              color: "var(--color-fg-subtle)",
+              color: "var(--muted-foreground)",
               fontFamily: "var(--font-mono)",
               maxWidth: "160px",
               overflow: "hidden",
@@ -54,7 +54,7 @@ export function ProgressBadge({ progress }: { progress: ProgressState | null }) 
           style={{
             width: "128px",
             height: "6px",
-            background: "var(--color-elev-2)",
+            background: "var(--muted)",
             borderRadius: "9999px",
             overflow: "hidden",
           }}
@@ -63,7 +63,7 @@ export function ProgressBadge({ progress }: { progress: ProgressState | null }) 
             style={{
               height: "100%",
               width: `${pct}%`,
-              background: isDone ? "var(--color-accent)" : "var(--color-accent-90)",
+              background: "var(--foreground)",
               borderRadius: "9999px",
               transition: "width 500ms cubic-bezier(0.22, 1, 0.36, 1), background 300ms cubic-bezier(0.22, 1, 0.36, 1)",
             }}
@@ -76,7 +76,7 @@ export function ProgressBadge({ progress }: { progress: ProgressState | null }) 
             fontSize: "16px",
             fontWeight: 600,
             fontVariantNumeric: "tabular-nums",
-            color: "var(--color-white)",
+            color: "var(--foreground)",
             lineHeight: 1,
           }}
         >
@@ -85,7 +85,7 @@ export function ProgressBadge({ progress }: { progress: ProgressState | null }) 
         <div
           style={{
             fontSize: "10px",
-            color: "var(--color-fg-subtle)",
+            color: "var(--muted-foreground)",
             marginTop: "2px",
             fontFamily: "var(--font-mono)",
             letterSpacing: "0.18em",

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Select } from "./ui/Select";
 
 interface ModelOption {
   id: string;
@@ -34,16 +35,12 @@ export function ModelPicker() {
   if (!available.length) return null;
 
   return (
-    <select
-      value={current}
-      onChange={handleChange}
-      className="text-xs bg-zinc-900 border border-zinc-700 text-zinc-300 rounded-md px-2 py-1 focus:outline-none focus:border-zinc-500 hover:border-zinc-500 transition-colors cursor-pointer"
-    >
+    <Select value={current} onChange={handleChange}>
       {available.map((m) => (
         <option key={m.id} value={m.id}>
           {m.label}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }

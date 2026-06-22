@@ -3,6 +3,7 @@ import type { Transaction, PdfLink as PdfLinkType, SortConfig } from "../types";
 import { PdfLink } from "./PdfLink";
 import { CategoryPicker } from "./CategoryPicker";
 import { CURRENCY_SYMBOLS } from "../hooks/useFxRates";
+import { Badge } from "./ui/Badge";
 
 type LinkFilter = "all" | "filled" | "empty";
 
@@ -40,8 +41,8 @@ function SortArrow({ column, sort }: { column: string; sort: SortConfig | null }
 }
 
 function LinkFilterIndicator({ filter }: { filter: LinkFilter }) {
-  if (filter === "filled") return <span className="ml-1 text-emerald-400">●</span>;
-  if (filter === "empty")  return <span className="ml-1 text-amber-400">○</span>;
+  if (filter === "filled") return <Badge style={{ color: "var(--positive-fg)", borderColor: "var(--positive-fg)" }}>●</Badge>;
+  if (filter === "empty")  return <Badge style={{ color: "var(--muted-foreground)" }}>○</Badge>;
   return null;
 }
 
@@ -104,7 +105,9 @@ export function TransactionTable({
 
   const startResize = (colKey: string, startX: number, startWidth: number, isDocs = false, isCategory = false) => {
     dragRef.current = { colKey, startX, startWidth, isDocs, isCategory };
+    // eslint-disable-next-line react-hooks/immutability
     document.body.style.cursor = "col-resize";
+    // eslint-disable-next-line react-hooks/immutability
     document.body.style.userSelect = "none";
   };
 
@@ -113,9 +116,9 @@ export function TransactionTable({
       style={{
         overflow: "auto",
         maxHeight: "calc(100vh - 8rem)",
-        border: "1px solid var(--color-border-dim)",
+        border: "1px solid var(--border)",
         borderRadius: "12px",
-        background: "var(--color-elev-1)",
+        background: "var(--card)",
       }}
     >
         <table
@@ -134,23 +137,25 @@ export function TransactionTable({
               {COLUMNS.map((col) => (
                 <th
                   key={col.key}
+                  onClick={() => onSort(col.key)}
                   style={{
                     width: colWidths[col.key],
                     position: "sticky",
                     top: 0,
                     zIndex: 1,
-                    background: "var(--color-elev-1)",
+                    background: "var(--card)",
                     textAlign: "left",
                     fontFamily: "var(--font-mono)",
                     fontSize: "10px",
                     fontWeight: 500,
                     letterSpacing: "0.16em",
                     textTransform: "uppercase",
-                    color: "var(--color-fg-subtle)",
+                    color: sort?.key === col.key ? "var(--foreground)" : "var(--muted-foreground)",
                     padding: "14px 14px",
-                    borderBottom: "1px solid var(--color-border-dim)",
+                    borderBottom: "1px solid var(--border)",
                     whiteSpace: "nowrap",
                     userSelect: "none",
+                    cursor: "pointer",
                   }}
                 >
                   {col.label}
@@ -179,14 +184,14 @@ export function TransactionTable({
                       style={{
                         width: "1px",
                         height: "12px",
-                        background: "var(--color-border-dim)",
+                        background: "var(--border)",
                         transition: "background 120ms cubic-bezier(0.22, 1, 0.36, 1)",
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "var(--color-fg-muted)";
+                        e.currentTarget.style.background = "var(--muted-foreground)";
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "var(--color-border-dim)";
+                        e.currentTarget.style.background = "var(--border)";
                       }}
                     />
                   </span>
@@ -199,16 +204,16 @@ export function TransactionTable({
                   position: "sticky",
                   top: 0,
                   zIndex: 1,
-                  background: "var(--color-elev-1)",
+                  background: "var(--card)",
                   textAlign: "left",
                   fontFamily: "var(--font-mono)",
                   fontSize: "10px",
                   fontWeight: 500,
                   letterSpacing: "0.16em",
                   textTransform: "uppercase",
-                  color: "var(--color-fg-subtle)",
+                  color: "var(--muted-foreground)",
                   padding: "14px 14px",
-                  borderBottom: "1px solid var(--color-border-dim)",
+                  borderBottom: "1px solid var(--border)",
                   whiteSpace: "nowrap",
                   userSelect: "none",
                 }}
@@ -237,14 +242,14 @@ export function TransactionTable({
                     style={{
                       width: "1px",
                       height: "12px",
-                      background: "var(--color-border-dim)",
+                      background: "var(--border)",
                       transition: "background 120ms cubic-bezier(0.22, 1, 0.36, 1)",
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--color-fg-muted)";
+                      e.currentTarget.style.background = "var(--muted-foreground)";
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "var(--color-border-dim)";
+                      e.currentTarget.style.background = "var(--border)";
                     }}
                   />
                 </span>
@@ -257,16 +262,16 @@ export function TransactionTable({
                   position: "sticky",
                   top: 0,
                   zIndex: 1,
-                  background: "var(--color-elev-1)",
+                  background: "var(--card)",
                   textAlign: "left",
                   fontFamily: "var(--font-mono)",
                   fontSize: "10px",
                   fontWeight: 500,
                   letterSpacing: "0.16em",
                   textTransform: "uppercase",
-                  color: "var(--color-fg-subtle)",
+                  color: "var(--muted-foreground)",
                   padding: "14px 14px",
-                  borderBottom: "1px solid var(--color-border-dim)",
+                  borderBottom: "1px solid var(--border)",
                   whiteSpace: "nowrap",
                   userSelect: "none",
                   cursor: "pointer",
@@ -298,14 +303,14 @@ export function TransactionTable({
                     style={{
                       width: "1px",
                       height: "12px",
-                      background: "var(--color-border-dim)",
+                      background: "var(--border)",
                       transition: "background 120ms cubic-bezier(0.22, 1, 0.36, 1)",
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--color-fg-muted)";
+                      e.currentTarget.style.background = "var(--muted-foreground)";
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "var(--color-border-dim)";
+                      e.currentTarget.style.background = "var(--border)";
                     }}
                   />
                 </span>
@@ -331,7 +336,7 @@ export function TransactionTable({
                 }}
                 onMouseEnter={(e) => {
                   if (!isHighlighted) {
-                    e.currentTarget.style.background = "rgba(255,255,255,0.02)";
+                    e.currentTarget.style.background = "var(--muted)";
                   }
                 }}
                 onMouseLeave={(e) => {
@@ -354,25 +359,22 @@ export function TransactionTable({
                       minHeight: "38px",
                       borderRadius: "0 2px 2px 0",
                       background: hasDoc
-                        ? "var(--color-accent)"
+                        ? "var(--foreground)"
                         : "transparent",
-                      boxShadow: hasDoc
-                        ? "0 0 8px var(--color-accent-25)"
-                        : "none",
                     }}
                   />
                 </td>
                 {COLUMNS.map((col) => {
                   const value = tx[col.key];
                   let display: string | React.ReactNode;
+                  const isNegative = col.key === "amount" && (value as number) < 0;
                   if (col.key === "amount") {
                     const amount = value as number;
-                    const isNegative = amount < 0;
                     display = (
                       <>
                         {isNegative && "− "}
                         {symbol} {Math.abs(amount).toFixed(2)}
-                        <span style={{ marginLeft: "4px", fontSize: "0.85em", color: "var(--color-fg-subtle)" }}>
+                        <span style={{ marginLeft: "4px", fontSize: "0.85em", color: "var(--muted-foreground)" }}>
                           {tx.currency}
                         </span>
                       </>
@@ -383,7 +385,7 @@ export function TransactionTable({
                       <>
                         {datePart}
                         {timePart && (
-                          <span style={{ color: "var(--color-fg-subtle)" }}>
+                          <span style={{ color: "var(--muted-foreground)" }}>
                             {" · "}{timePart.slice(0, 5)}
                           </span>
                         )}
@@ -392,8 +394,8 @@ export function TransactionTable({
                   } else {
                     display = String(value ?? "");
                   }
-                  const isNegative = col.key === "amount" && (value as number) < 0;
                   const isId = col.key === "transferWiseId";
+                  const isNumeric = col.key === "amount";
                   return (
                     <td
                       key={col.key}
@@ -401,13 +403,14 @@ export function TransactionTable({
                         width: colWidths[col.key],
                         maxWidth: colWidths[col.key],
                         padding: "12px 14px",
-                        borderBottom: "1px solid var(--color-border-faint)",
-                        color: "var(--color-fg)",
+                        borderBottom: "1px solid var(--border)",
+                        color: isNegative ? "var(--negative)" : "var(--foreground)",
                         verticalAlign: "middle",
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         cursor: "pointer",
+                        ...(isNumeric ? { fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" } : {}),
                       }}
                       onClick={() => {
                         if (isId) {
@@ -432,7 +435,7 @@ export function TransactionTable({
                     width: categoryWidth,
                     maxWidth: categoryWidth,
                     padding: "12px 14px",
-                    borderBottom: "1px solid var(--color-border-faint)",
+                    borderBottom: "1px solid var(--border)",
                   }}
                 >
                   <CategoryPicker
@@ -447,7 +450,7 @@ export function TransactionTable({
                     width: docsWidth,
                     maxWidth: docsWidth,
                     padding: "12px 14px",
-                    borderBottom: "1px solid var(--color-border-faint)",
+                    borderBottom: "1px solid var(--border)",
                   }}
                 >
                   <PdfLink

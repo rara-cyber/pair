@@ -1,18 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export function DropZone() {
+interface Props {
+  onIngested?: () => void;
+}
+
+export function DropZone({ onIngested }: Props = {}) {
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const dragCounter = useRef(0);
 
   const handleFile = useCallback(async (file: File) => {
-    if (!file.name.endsWith(".pdf")) return;
-    setLoading(true);
-    const form = new FormData();
-    form.append("file", file);
-    await fetch("/api/match-pdf", { method: "POST", body: form });
-    setLoading(false);
-  }, []);
+    const lower = file.name.toLowerCase();
+    if (lower.endsWith(".pdf")) {
+      setLoading(true);
+      const form = new FormData(); form.append("file", file);
+      await fetch("/api/match-pdf", { method: "POST", body: form });
+      setLoading(false);
+    } else if (lower.endsWith(".zip")) {
+      setLoading(true);
+      const form = new FormData(); form.append("file", file);
+      await fetch("/api/ingest-zip", { method: "POST", body: form });
+      setLoading(false);
+      onIngested?.();
+    }
+  }, [onIngested]);
 
   useEffect(() => {
     const onDragEnter = (e: DragEvent) => {
@@ -57,7 +68,7 @@ export function DropZone() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(18,20,24,0.8)",
+        background: "color-mix(in srgb, var(--background) 85%, transparent)",
         backdropFilter: "blur(8px)",
         pointerEvents: "none",
       }}
@@ -70,15 +81,15 @@ export function DropZone() {
           gap: "16px",
           padding: "48px 64px",
           borderRadius: "16px",
-          border: "2px dashed var(--color-accent-25)",
-          background: "var(--color-elev-1)",
+          border: dragging ? "2px dashed var(--foreground)" : "2px dashed var(--border)",
+          background: dragging ? "var(--muted)" : "var(--card)",
           transition: "border-color 200ms cubic-bezier(0.22, 1, 0.36, 1), background 200ms cubic-bezier(0.22, 1, 0.36, 1)",
         }}
       >
         {loading ? (
           <>
             <svg
-              style={{ width: "40px", height: "40px", color: "var(--color-accent)", animation: "spin 1s linear infinite" }}
+              style={{ width: "40px", height: "40px", color: "var(--foreground)", animation: "spin 1s linear infinite" }}
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -86,7 +97,7 @@ export function DropZone() {
             >
               <path d="M12 3v3m0 12v3M3 12h3m12 0h3" strokeLinecap="round" />
             </svg>
-            <span style={{ fontSize: "16px", fontWeight: 500, color: "var(--color-fg)" }}>
+            <span style={{ fontSize: "16px", fontWeight: 500, color: "var(--foreground)" }}>
               Uploading…
             </span>
           </>
@@ -99,11 +110,11 @@ export function DropZone() {
                 display: "grid",
                 placeItems: "center",
                 borderRadius: "12px",
-                background: "var(--color-accent-10)",
-                border: "1px solid var(--color-accent-25)",
+                background: "var(--muted)",
+                border: "1px solid var(--border)",
               }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--foreground)" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                 <polyline points="14 2 14 8 20 8" />
                 <path d="M12 18v-6" />
@@ -111,12 +122,15 @@ export function DropZone() {
               </svg>
             </div>
             <div style={{ textAlign: "center", maxWidth: "280px" }}>
-              <span style={{ fontSize: "16px", fontWeight: 500, color: "var(--color-fg)" }}>
-                Drop PDF to{" "}
-                <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--color-accent)" }}>
+              <div style={{ fontSize: "16px", fontWeight: 500, color: "var(--foreground)" }}>
+                Drop a PDF to{" "}
+                <span style={{ fontFamily: "var(--font-sans)", fontStyle: "italic" }}>
                   match
                 </span>
-              </span>
+              </div>
+              <div style={{ fontSize: "13px", color: "var(--muted-foreground)", marginTop: "6px" }}>
+                or a statement .zip to import
+              </div>
             </div>
           </>
         )}

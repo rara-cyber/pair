@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import type { PdfLink, Transaction, CategoryEvent } from "../types";
+import type { PdfLink, CategoryEvent } from "../types";
 
 export interface ProgressState {
   status: "idle" | "running" | "done";

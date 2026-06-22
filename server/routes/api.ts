@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { join, basename } from "path";
-import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync, statSync } from "fs";
+import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync, statSync, rmSync } from "fs";
 import multer from "multer";
 import { parseAllCsvs } from "../services/csvParser";
 import { indexAllPdfs } from "../services/pdfIndexer";
@@ -10,13 +10,15 @@ import { categorizeTransactions } from "../services/categorizer";
 import { progressEmitter, currentProgress, emitMatch } from "../services/progress";
 import { extractPdfData } from "../services/pdfExtractor";
 import { readdirSync } from "fs";
-import type { Transaction } from "../services/csvParser";
+import AdmZip from "adm-zip";
+import type { Transaction, PdfLink } from "../services/csvParser";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 const router = Router();
 
 const DATA_DIR = join(__dirname, "../../data");
+const CSV_BASE_DIR = join(__dirname, "../../account-statements");
 
 let cachedData: {
   transactions: Transaction[];
@@ -25,6 +27,25 @@ let cachedData: {
 
 let loading: Promise<void> | null = null;
 let pendingCategorizeForce = false;
+
+function refreshCachedFromCsvs() {
+  const parsed = parseAllCsvs();
+  const prev = new Map((cachedData?.transactions ?? []).map((t) => [t.transferWiseId, t]));
+  const transactions: Transaction[] = parsed.map((tx) => {
+    const old = prev.get(tx.transferWiseId);
+    return old
+      ? { ...tx, invoiceLinks: old.invoiceLinks ?? [], remittanceLinks: old.remittanceLinks ?? [], categories: old.categories }
+      : { ...tx, invoiceLinks: [] as PdfLink[], remittanceLinks: [] as PdfLink[] };
+  });
+  cachedData = {
+    transactions,
+    stats: {
+      total: transactions.length,
+      withInvoice: transactions.filter((t) => (t.invoiceLinks?.length ?? 0) > 0).length,
+      withRemittance: transactions.filter((t) => (t.remittanceLinks?.length ?? 0) > 0).length,
+    },
+  };
+}
 
 async function loadData(forceRematch = false, categorizeForce = false) {
   const transactions = parseAllCsvs();
@@ -134,6 +155,55 @@ router.post("/match-pdf", upload.single("file"), (req: Request, res: Response) =
   else triggerLoad();
 
   res.json({ queued: true });
+});
+
+router.post("/ingest-zip", upload.single("file"), (req: Request, res: Response) => {
+  if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
+  const original = basename(req.file.originalname);
+  if (!original.toLowerCase().endsWith(".zip")) { res.status(400).json({ error: "Expected a .zip file" }); return; }
+
+  // Folder named after the zip (e.g. statement_2026-05-01_2026-05-31_csv), sanitized.
+  // Strip a browser-added " (1)" duplicate suffix so re-downloading the SAME month
+  // resolves to the same folder and replaces it (instead of accumulating "…__1_" folders).
+  const folderName = original
+    .replace(/\.zip$/i, "")
+    .replace(/\s*\(\d+\)\s*$/, "")
+    .replace(/[^A-Za-z0-9._-]/g, "_");
+  if (!folderName) { res.status(400).json({ error: "Invalid archive name" }); return; }
+  const destDir = join(CSV_BASE_DIR, folderName);
+  // Replace the folder wholesale so the month reflects exactly this archive (no stale CSVs).
+  rmSync(destDir, { recursive: true, force: true });
+  mkdirSync(destDir, { recursive: true });
+
+  let added = 0;
+  try {
+    const zip = new AdmZip(req.file.buffer);
+    for (const entry of zip.getEntries()) {
+      if (entry.isDirectory) continue;
+      const name = basename(entry.entryName);
+      if (!name.toLowerCase().endsWith(".csv")) continue;
+      writeFileSync(join(destDir, name), entry.getData());
+      added++;
+    }
+  } catch {
+    res.status(400).json({ error: "Could not read the zip archive" });
+    return;
+  }
+  if (added === 0) { res.status(400).json({ error: "No CSV files found in the archive" }); return; }
+
+  // Reflect the new month immediately (preserving current matches/categories)…
+  refreshCachedFromCsvs();
+  // …then re-run matching/categorization for the newly-added transactions in the background.
+  const triggerLoad = () => {
+    if (!loading) {
+      const force = pendingCategorizeForce; pendingCategorizeForce = false;
+      loading = loadData(false, force).finally(() => { loading = null; });
+    }
+  };
+  if (loading) loading.finally(triggerLoad);
+  else triggerLoad();
+
+  res.json({ ok: true, added, folder: folderName });
 });
 
 router.delete("/match", (req: Request, res: Response) => {

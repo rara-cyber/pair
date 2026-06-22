@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Transaction, PdfLink } from "../types";
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogBody, DialogFooter } from "./ui/Dialog";
+import { Button } from "./ui/Button";
 
 interface UnmatchedPdf {
   filename: string;
@@ -43,27 +45,50 @@ function PdfCard({
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
-        selected
-          ? "border-emerald-500 bg-emerald-950/40"
-          : "border-zinc-800 hover:border-zinc-600 hover:bg-zinc-900/50"
-      }`}
+      style={{
+        width: "100%",
+        textAlign: "left",
+        padding: "0.75rem 1rem",
+        borderRadius: "var(--radius-lg)",
+        border: selected ? "1px solid var(--border)" : "1px solid transparent",
+        background: selected ? "var(--secondary)" : "transparent",
+        cursor: "pointer",
+        transition: "background 120ms ease, border-color 120ms ease",
+      }}
+      onMouseEnter={(e) => { if (!selected) e.currentTarget.style.background = "var(--muted)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = selected ? "var(--secondary)" : "transparent"; }}
     >
-      <p className="text-xs text-zinc-400 truncate mb-1.5" title={pdf.filename}>{shortName}</p>
-      <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+      <p
+        style={{
+          fontSize: "0.75rem",
+          color: "var(--muted-foreground)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          marginBottom: "0.375rem",
+        }}
+        title={pdf.filename}
+      >
+        {shortName}
+      </p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "0 1rem" }}>
         {info.date && (
-          <span className="text-xs text-zinc-300"><span className="text-zinc-500">Date </span>{info.date}</span>
+          <span style={{ fontSize: "0.75rem", color: "var(--foreground)" }}>
+            <span style={{ color: "var(--muted-foreground)" }}>Date </span>{info.date}
+          </span>
         )}
         {info.amount && (
-          <span className="text-xs font-mono text-emerald-400">
+          <span style={{ fontSize: "0.75rem", fontFamily: "var(--font-mono)", color: "var(--foreground)" }}>
             {info.currency ? `${info.currency} ` : ""}{info.amount}
           </span>
         )}
         {info.payer && (
-          <span className="text-xs text-zinc-400 truncate max-w-[200px]">{info.payer}</span>
+          <span style={{ fontSize: "0.75rem", color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "200px" }}>
+            {info.payer}
+          </span>
         )}
         {!info.date && !info.amount && pdf.dates[0] && (
-          <span className="text-xs text-zinc-400">{pdf.dates[0]}</span>
+          <span style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>{pdf.dates[0]}</span>
         )}
       </div>
     </button>
@@ -121,99 +146,110 @@ export function ManualMatchModal({ transaction, onClose, onMatched }: Props) {
   ].filter(Boolean).join(" · ");
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div className="flex flex-col w-[900px] max-w-[95vw] h-[75vh] max-h-[700px] bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
+    <Dialog open onClose={onClose} width="900px">
+      <DialogHeader>
+        <div>
+          <DialogTitle>Link document manually</DialogTitle>
+          <DialogDescription style={{ marginTop: "0.25rem" }}>
+            <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "600px" }}>{txLabel}</span>
+            <span style={{ display: "block", fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--muted-foreground)", marginTop: "0.125rem" }}>{transaction.transferWiseId}</span>
+          </DialogDescription>
+        </div>
+      </DialogHeader>
 
-        {/* Header */}
-        <div className="flex items-start justify-between px-6 py-4 border-b border-zinc-800 shrink-0">
-          <div>
-            <h2 className="text-sm font-semibold text-zinc-100">Link document manually</h2>
-            <p className="text-xs text-zinc-500 mt-0.5 truncate max-w-[600px]">{txLabel}</p>
-            <p className="text-xs text-zinc-600 font-mono mt-0.5">{transaction.transferWiseId}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-200 transition-colors ml-4 mt-0.5 text-lg leading-none"
+      <DialogBody
+        style={{
+          display: "flex",
+          height: "calc(75vh - 10rem)",
+          maxHeight: "500px",
+          margin: "0 -1.25rem",
+          borderTop: "1px solid var(--border)",
+          borderBottom: "1px solid var(--border)",
+          overflow: "hidden",
+        }}
+      >
+        {/* Left: PDF list */}
+        <div
+          style={{
+            width: "340px",
+            flexShrink: 0,
+            display: "flex",
+            flexDirection: "column",
+            borderRight: "1px solid var(--border)",
+          }}
+        >
+          <div
+            style={{
+              padding: "0.625rem 1rem",
+              borderBottom: "1px solid var(--border)",
+              flexShrink: 0,
+            }}
           >
-            ✕
-          </button>
-        </div>
-
-        {/* Body: two panels */}
-        <div className="flex flex-1 overflow-hidden">
-
-          {/* Left: PDF list */}
-          <div className="w-[340px] shrink-0 flex flex-col border-r border-zinc-800">
-            <div className="px-4 py-2.5 border-b border-zinc-800/50 shrink-0">
-              <p className="text-xs text-zinc-500">
-                {loading ? "Loading…" : `${pdfs.length} unmatched file${pdfs.length !== 1 ? "s" : ""}`}
-              </p>
-            </div>
-            <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
-              {loading && (
-                <p className="text-xs text-zinc-600 text-center mt-8">Loading files…</p>
-              )}
-              {!loading && pdfs.length === 0 && (
-                <p className="text-xs text-zinc-600 text-center mt-8">No unmatched files</p>
-              )}
-              {pdfs.map((pdf) => (
-                <PdfCard
-                  key={pdf.filename}
-                  pdf={pdf}
-                  selected={selected?.filename === pdf.filename}
-                  onClick={() => setSelected(pdf)}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Right: PDF preview */}
-          <div className="flex-1 flex flex-col bg-zinc-900/30">
-            {selected ? (
-              <iframe
-                key={selected.previewUrl}
-                src={selected.previewUrl}
-                className="flex-1 w-full"
-                title={selected.filename}
-              />
-            ) : (
-              <div className="flex-1 flex items-center justify-center">
-                <p className="text-xs text-zinc-600">Select a file to preview</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-3 border-t border-zinc-800 shrink-0">
-          {error ? (
-            <p className="text-xs text-red-400">{error}</p>
-          ) : (
-            <p className="text-xs text-zinc-600">
-              {selected ? `Selected: ${selected.filename}` : "No file selected"}
+            <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>
+              {loading ? "Loading…" : `${pdfs.length} unmatched file${pdfs.length !== 1 ? "s" : ""}`}
             </p>
-          )}
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-1.5 text-sm rounded-lg border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleLink}
-              disabled={!selected || submitting}
-              className="px-4 py-1.5 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium"
-            >
-              {submitting ? "Linking…" : "Link to transaction"}
-            </button>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            {loading && (
+              <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)", textAlign: "center", marginTop: "2rem" }}>Loading files…</p>
+            )}
+            {!loading && pdfs.length === 0 && (
+              <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)", textAlign: "center", marginTop: "2rem" }}>No unmatched files</p>
+            )}
+            {pdfs.map((pdf) => (
+              <PdfCard
+                key={pdf.filename}
+                pdf={pdf}
+                selected={selected?.filename === pdf.filename}
+                onClick={() => setSelected(pdf)}
+              />
+            ))}
           </div>
         </div>
 
-      </div>
-    </div>
+        {/* Right: PDF preview */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--muted)" }}>
+          {selected ? (
+            <iframe
+              key={selected.previewUrl}
+              src={selected.previewUrl}
+              style={{
+                flex: 1,
+                width: "100%",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-lg)",
+              }}
+              title={selected.filename}
+            />
+          ) : (
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>Select a file to preview</p>
+            </div>
+          )}
+        </div>
+      </DialogBody>
+
+      <DialogFooter style={{ alignItems: "center", justifyContent: "space-between" }}>
+        {error ? (
+          <p style={{ fontSize: "0.75rem", color: "var(--destructive)" }}>{error}</p>
+        ) : (
+          <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>
+            {selected ? `Selected: ${selected.filename}` : "No file selected"}
+          </p>
+        )}
+        <div style={{ display: "flex", gap: "0.75rem" }}>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="default"
+            onClick={handleLink}
+            disabled={!selected || submitting}
+          >
+            {submitting ? "Linking…" : "Link to transaction"}
+          </Button>
+        </div>
+      </DialogFooter>
+    </Dialog>
   );
 }

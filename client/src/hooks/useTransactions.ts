@@ -25,6 +25,10 @@ export function useTransactions() {
       });
   }, []);
 
+  const refetch = useCallback(() => {
+    fetch("/api/transactions").then((res) => res.json()).then((d: ApiResponse) => setData(d)).catch(() => {});
+  }, []);
+
   const toggleSort = (key: keyof Transaction) => {
     setSort((prev) => {
       if (!prev || prev.key !== key) return { key, direction: "asc" };
@@ -209,5 +213,6 @@ export function useTransactions() {
     filterByMonth,
     dateRange,
     setDateRange,
+    refetch,
   };
 }

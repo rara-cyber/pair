@@ -1,3 +1,5 @@
+import { Select } from "./ui/Select";
+
 interface Props {
   value: string;
   currencies: string[];
@@ -11,21 +13,19 @@ export function CurrencyPicker({ value, currencies, loading, error, onChange }: 
 
   return (
     <div className="flex items-center gap-1.5">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="text-xs bg-zinc-900 border border-zinc-700 text-zinc-300 rounded-md px-2 py-1 focus:outline-none focus:border-zinc-500 hover:border-zinc-500 transition-colors cursor-pointer"
-        title="Base currency for KPI totals"
-      >
+      <Select value={value} onChange={(e) => onChange(e.target.value)} title="Base currency for KPI totals">
         {currencies.map((c) => (
           <option key={c} value={c}>{c}</option>
         ))}
-      </select>
+      </Select>
       {loading && (
-        <span className="text-[10px] text-zinc-600 uppercase tracking-wide">rates…</span>
+        <span style={{ fontSize: "0.625rem", color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>rates…</span>
       )}
       {error && (
-        <span className="text-[10px] text-amber-600 uppercase tracking-wide" title="FX rates unavailable — totals may be in mixed currencies">no fx</span>
+        <span
+          style={{ fontSize: "0.625rem", color: "var(--destructive)", textTransform: "uppercase", letterSpacing: "0.05em" }}
+          title="FX rates unavailable — totals may be in mixed currencies"
+        >no fx</span>
       )}
     </div>
   );
