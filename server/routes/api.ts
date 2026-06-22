@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { join, basename } from "path";
-import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync, statSync } from "fs";
+import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync, statSync, rmSync } from "fs";
 import multer from "multer";
 import { parseAllCsvs } from "../services/csvParser";
 import { indexAllPdfs } from "../services/pdfIndexer";
@@ -163,9 +163,16 @@ router.post("/ingest-zip", upload.single("file"), (req: Request, res: Response) 
   if (!original.toLowerCase().endsWith(".zip")) { res.status(400).json({ error: "Expected a .zip file" }); return; }
 
   // Folder named after the zip (e.g. statement_2026-05-01_2026-05-31_csv), sanitized.
-  const folderName = original.replace(/\.zip$/i, "").replace(/[^A-Za-z0-9._-]/g, "_");
+  // Strip a browser-added " (1)" duplicate suffix so re-downloading the SAME month
+  // resolves to the same folder and replaces it (instead of accumulating "…__1_" folders).
+  const folderName = original
+    .replace(/\.zip$/i, "")
+    .replace(/\s*\(\d+\)\s*$/, "")
+    .replace(/[^A-Za-z0-9._-]/g, "_");
   if (!folderName) { res.status(400).json({ error: "Invalid archive name" }); return; }
   const destDir = join(CSV_BASE_DIR, folderName);
+  // Replace the folder wholesale so the month reflects exactly this archive (no stale CSVs).
+  rmSync(destDir, { recursive: true, force: true });
   mkdirSync(destDir, { recursive: true });
 
   let added = 0;
