@@ -208,7 +208,7 @@ function App() {
             {/* SIÁN brand */}
             <a href="#" style={{ display: 'inline-flex', alignItems: 'baseline', gap: '8px', textDecoration: 'none', color: 'inherit' }}>
               <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: '20px', letterSpacing: '0.02em', color: 'var(--foreground)' }}>SIÁN</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--color-fg-subtle)' }}>AGENCY</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>AGENCY</span>
             </a>
             <span style={{ width: '1px', height: '22px', background: 'var(--border)' }}></span>
 
@@ -222,10 +222,10 @@ function App() {
                 background: 'var(--card)'
               }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="7" height="12" rx="1.2" stroke="#A4ACBC"/>
-                  <rect x="14" y="8" width="7" height="12" rx="1.2" stroke="#A4ACBC"/>
-                  <path d="M10 9h4" stroke="#1AE392"/>
-                  <path d="M10 13h4" stroke="#1AE392" strokeDasharray="2 2"/>
+                  <rect x="3" y="4" width="7" height="12" rx="1.2" stroke="var(--muted-foreground)"/>
+                  <rect x="14" y="8" width="7" height="12" rx="1.2" stroke="var(--muted-foreground)"/>
+                  <path d="M10 9h4" stroke="var(--positive)"/>
+                  <path d="M10 13h4" stroke="var(--positive)" strokeDasharray="2 2"/>
                 </svg>
               </span>
               <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '15px', letterSpacing: '0.01em', color: 'var(--foreground)' }}>Pair</span>
