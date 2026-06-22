@@ -48,7 +48,7 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-4xl: calc(var(--radius) * 2.6);
   --radius-full: 9999px;
-  --ring-card: 1px solid color-mix(in oklab, var(--foreground) 10%, transparent);
+  --ring-card: 0 0 0 1px color-mix(in oklab, var(--foreground) 10%, transparent);
   --ring-focus: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
   --shadow-popover: 0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.06);
   --shadow-dialog: 0 10px 30px -10px rgb(0 0 0 / 0.18);

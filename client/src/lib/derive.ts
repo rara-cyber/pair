@@ -105,7 +105,7 @@ export interface KpiData { value: string; delta: { value: string; positive: bool
 
 export function kpisFor(txns: Transaction[], base: string, rates: FxRates | null): { income: KpiData; expenses: KpiData; net: KpiData } {
   const months = monthlyNet(txns, base, rates).map((m) => m.month);
-  const uniq = [...new Set(months)].sort();
+  const uniq = months;
   const cur = uniq[uniq.length - 1];
   const prev = uniq[uniq.length - 2];
   const inMonth = (k?: string) => txns.filter((t) => (/^\d{4}-\d{2}/.test(t.date) ? t.date.slice(0, 7) : "") === k);
@@ -120,7 +120,7 @@ export function kpisFor(txns: Transaction[], base: string, rates: FxRates | null
 
   return {
     income: { value: fmtAbbrev(curT.income, base), delta: pctDelta(curT.income, prevT?.income), sub: "this month" },
-    expenses: { value: fmtAbbrev(curT.expenses, base), delta: pctDelta(Math.abs(curT.expenses), prevT ? Math.abs(prevT.expenses) : undefined), sub: "this month" },
+    expenses: { value: fmtAbbrev(curT.expenses, base), delta: pctDelta(curT.expenses, prevT?.expenses), sub: "this month" },
     net: { value: fmtAbbrev(curT.net, base), delta: pctDelta(curT.net, prevT?.net), sub: "income − expenses" },
   };
 }
