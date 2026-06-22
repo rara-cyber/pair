@@ -1,0 +1,53 @@
+import { useMemo } from "react";
+import type { Transaction } from "../types";
+import { type FxRates } from "../hooks/useFxRates";
+import { Card, CardContent } from "./ui/Card";
+import { KpiTile } from "./ui/KpiTile";
+import { MilestoneLadder } from "./ui/MilestoneLadder";
+import { kpisFor, coverageLadder, monthlyNetLadder } from "../lib/derive";
+
+interface Props {
+  transactions: Transaction[];
+  stats: { total: number; withInvoice: number; withRemittance: number } | null;
+  baseCurrency: string;
+  rates: FxRates | null;
+}
+
+export function Dashboard({ transactions, stats, baseCurrency, rates }: Props) {
+  const kpis = useMemo(() => kpisFor(transactions, baseCurrency, rates), [transactions, baseCurrency, rates]);
+  const coverage = useMemo(() => (stats ? coverageLadder(stats) : null), [stats]);
+  const netLadder = useMemo(() => monthlyNetLadder(transactions, baseCurrency, rates), [transactions, baseCurrency, rates]);
+
+  return (
+    <div style={{ maxWidth: "var(--container-max)", margin: "0 auto", padding: "40px 24px 80px" }}>
+      <header style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", justifyContent: "space-between", gap: "12px", marginBottom: "28px" }}>
+        <div>
+          <div style={{ fontSize: "12px", color: "var(--muted-foreground)", marginBottom: "8px" }}>SIÁN Portfolio · Internal</div>
+          <h1 style={{ margin: 0, fontSize: "24px", fontWeight: 600, letterSpacing: "-0.02em" }}>Pair Overview</h1>
+          <p style={{ margin: "6px 0 0", fontSize: "14px", color: "var(--muted-foreground)" }}>
+            {stats ? `${stats.total} transactions · ${stats.withInvoice + stats.withRemittance} with a document` : "Loading…"}
+          </p>
+        </div>
+      </header>
+
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "28px" }}>
+        <KpiTile label="Income · this month" value={kpis.income.value} delta={kpis.income.delta} sub={kpis.income.sub} />
+        <KpiTile label="Expenses · this month" value={kpis.expenses.value} delta={kpis.expenses.delta} sub={kpis.expenses.sub} />
+        <KpiTile label="Net · this month" value={kpis.net.value} delta={kpis.net.delta} sub={kpis.net.sub} />
+      </section>
+
+      <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: "14px" }}>Goals</div>
+
+      <Card style={{ padding: "1.25rem" }}>
+        <CardContent>
+          <div style={{ fontFamily: "var(--font-heading)", fontSize: "16px", fontWeight: 500, marginBottom: "4px" }}>Coverage &amp; goals</div>
+          <div style={{ fontSize: "14px", color: "var(--muted-foreground)", marginBottom: "18px" }}>Document matching and monthly net milestones</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+            {coverage && <MilestoneLadder {...coverage} />}
+            <MilestoneLadder {...netLadder} />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
