@@ -37,7 +37,20 @@ export function ModelPicker() {
     <select
       value={current}
       onChange={handleChange}
-      className="text-xs bg-zinc-900 border border-zinc-700 text-zinc-300 rounded-md px-2 py-1 focus:outline-none focus:border-zinc-500 hover:border-zinc-500 transition-colors cursor-pointer"
+      style={{
+        fontSize: "0.75rem",
+        background: "var(--card)",
+        border: "1px solid var(--input)",
+        color: "var(--foreground)",
+        borderRadius: "var(--radius-lg)",
+        padding: "0 0.5rem",
+        height: "2rem",
+        cursor: "pointer",
+        outline: "none",
+        transition: "border-color 120ms ease, box-shadow 120ms ease",
+      }}
+      onFocus={(e) => { e.currentTarget.style.boxShadow = "var(--ring-focus)"; }}
+      onBlur={(e) => { e.currentTarget.style.boxShadow = "none"; }}
     >
       {available.map((m) => (
         <option key={m.id} value={m.id}>

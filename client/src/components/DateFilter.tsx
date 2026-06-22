@@ -111,16 +111,25 @@ export function DateFilter({ dateRange, onChange }: Props) {
   }
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} style={{ position: "relative" }}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border transition-colors cursor-pointer ${
-          isActive
-            ? "border-blue-600 bg-blue-950/60 text-blue-300"
-            : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
-        }`}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.375rem",
+          fontSize: "0.75rem",
+          padding: "0 0.625rem",
+          height: "2rem",
+          borderRadius: "var(--radius-lg)",
+          border: isActive ? "1px solid var(--border)" : "1px solid var(--input)",
+          background: isActive ? "var(--secondary)" : "var(--card)",
+          color: isActive ? "var(--secondary-foreground)" : "var(--muted-foreground)",
+          cursor: "pointer",
+          transition: "background 120ms ease, color 120ms ease, border-color 120ms ease",
+        }}
       >
-        <svg className="w-3 h-3 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg style={{ width: "0.75rem", height: "0.75rem", flexShrink: 0 }} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="2" y="3" width="12" height="11" rx="1.5" />
           <path d="M5 1v4M11 1v4M2 7h12" />
         </svg>
@@ -129,7 +138,7 @@ export function DateFilter({ dateRange, onChange }: Props) {
           <span
             role="button"
             onClick={(e) => { e.stopPropagation(); onChange(null, null); }}
-            className="ml-0.5 text-zinc-500 hover:text-zinc-200 cursor-pointer leading-none"
+            style={{ marginLeft: "0.125rem", color: "var(--muted-foreground)", cursor: "pointer", lineHeight: 1 }}
           >
             ×
           </span>
@@ -137,17 +146,41 @@ export function DateFilter({ dateRange, onChange }: Props) {
       </button>
 
       {open && (
-        <div className="absolute top-full mt-1 left-0 z-50 w-52 bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl overflow-hidden">
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            left: 0,
+            zIndex: 50,
+            width: "13rem",
+            background: "var(--popover)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-popover)",
+            overflow: "hidden",
+          }}
+        >
           <button
             onClick={() => { onChange(null, null); setOpen(false); }}
-            className={`w-full text-left px-3 py-2 text-xs transition-colors hover:bg-zinc-800 cursor-pointer ${
-              !isActive ? "text-zinc-200 font-medium" : "text-zinc-400"
-            }`}
+            style={{
+              width: "100%",
+              textAlign: "left",
+              padding: "0.5rem 0.75rem",
+              fontSize: "0.75rem",
+              background: "transparent",
+              border: "none",
+              color: !isActive ? "var(--foreground)" : "var(--muted-foreground)",
+              fontWeight: !isActive ? 500 : 400,
+              cursor: "pointer",
+              transition: "background 80ms ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--muted)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
           >
             All dates
           </button>
 
-          <div className="h-px bg-zinc-800" />
+          <div style={{ height: "1px", background: "var(--border)" }} />
 
           {presets.map((preset) => {
             const range = preset.getRange();
@@ -156,36 +189,86 @@ export function DateFilter({ dateRange, onChange }: Props) {
               <button
                 key={preset.key}
                 onClick={() => { onChange(range.from, range.to); setOpen(false); }}
-                className={`w-full text-left px-3 py-2 text-xs transition-colors hover:bg-zinc-800 cursor-pointer ${
-                  isSelected ? "text-blue-300 font-medium" : "text-zinc-300"
-                }`}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "0.5rem 0.75rem",
+                  fontSize: "0.75rem",
+                  background: isSelected ? "var(--secondary)" : "transparent",
+                  border: "none",
+                  color: isSelected ? "var(--secondary-foreground)" : "var(--foreground)",
+                  fontWeight: isSelected ? 500 : 400,
+                  cursor: "pointer",
+                  transition: "background 80ms ease",
+                }}
+                onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "var(--muted)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = isSelected ? "var(--secondary)" : "transparent"; }}
               >
                 {preset.label}
               </button>
             );
           })}
 
-          <div className="h-px bg-zinc-800" />
+          <div style={{ height: "1px", background: "var(--border)" }} />
 
-          <div className="px-3 py-2.5">
-            <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Custom range</div>
-            <div className="flex flex-col gap-1.5">
+          <div style={{ padding: "0.625rem 0.75rem" }}>
+            <div style={{ fontSize: "0.625rem", color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>
+              Custom range
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
               <input
                 type="date"
                 value={customFrom}
                 onChange={(e) => setCustomFrom(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 focus:border-blue-500 focus:outline-none"
+                style={{
+                  width: "100%",
+                  background: "var(--muted)",
+                  border: "1px solid var(--input)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "0.25rem 0.5rem",
+                  fontSize: "0.75rem",
+                  color: "var(--foreground)",
+                  outline: "none",
+                  boxSizing: "border-box",
+                  transition: "box-shadow 120ms ease",
+                }}
+                onFocus={(e) => { e.currentTarget.style.boxShadow = "var(--ring-focus)"; }}
+                onBlur={(e) => { e.currentTarget.style.boxShadow = "none"; }}
               />
               <input
                 type="date"
                 value={customTo}
                 onChange={(e) => setCustomTo(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 focus:border-blue-500 focus:outline-none"
+                style={{
+                  width: "100%",
+                  background: "var(--muted)",
+                  border: "1px solid var(--input)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "0.25rem 0.5rem",
+                  fontSize: "0.75rem",
+                  color: "var(--foreground)",
+                  outline: "none",
+                  boxSizing: "border-box",
+                  transition: "box-shadow 120ms ease",
+                }}
+                onFocus={(e) => { e.currentTarget.style.boxShadow = "var(--ring-focus)"; }}
+                onBlur={(e) => { e.currentTarget.style.boxShadow = "none"; }}
               />
               <button
                 disabled={!customFrom && !customTo}
                 onClick={() => { onChange(customFrom || null, customTo || null); setOpen(false); }}
-                className="w-full text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded px-2 py-1.5 transition-colors cursor-pointer"
+                style={{
+                  width: "100%",
+                  fontSize: "0.75rem",
+                  background: "var(--foreground)",
+                  color: "var(--background)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "0.375rem 0.5rem",
+                  border: "none",
+                  cursor: !customFrom && !customTo ? "not-allowed" : "pointer",
+                  opacity: !customFrom && !customTo ? 0.4 : 1,
+                  transition: "opacity 120ms ease",
+                }}
               >
                 Apply
               </button>

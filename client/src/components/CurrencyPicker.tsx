@@ -14,18 +14,34 @@ export function CurrencyPicker({ value, currencies, loading, error, onChange }: 
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="text-xs bg-zinc-900 border border-zinc-700 text-zinc-300 rounded-md px-2 py-1 focus:outline-none focus:border-zinc-500 hover:border-zinc-500 transition-colors cursor-pointer"
         title="Base currency for KPI totals"
+        style={{
+          fontSize: "0.75rem",
+          background: "var(--card)",
+          border: "1px solid var(--input)",
+          color: "var(--foreground)",
+          borderRadius: "var(--radius-lg)",
+          padding: "0 0.5rem",
+          height: "2rem",
+          cursor: "pointer",
+          outline: "none",
+          transition: "border-color 120ms ease, box-shadow 120ms ease",
+        }}
+        onFocus={(e) => { e.currentTarget.style.boxShadow = "var(--ring-focus)"; }}
+        onBlur={(e) => { e.currentTarget.style.boxShadow = "none"; }}
       >
         {currencies.map((c) => (
           <option key={c} value={c}>{c}</option>
         ))}
       </select>
       {loading && (
-        <span className="text-[10px] text-zinc-600 uppercase tracking-wide">rates…</span>
+        <span style={{ fontSize: "0.625rem", color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>rates…</span>
       )}
       {error && (
-        <span className="text-[10px] text-amber-600 uppercase tracking-wide" title="FX rates unavailable — totals may be in mixed currencies">no fx</span>
+        <span
+          style={{ fontSize: "0.625rem", color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}
+          title="FX rates unavailable — totals may be in mixed currencies"
+        >no fx</span>
       )}
     </div>
   );

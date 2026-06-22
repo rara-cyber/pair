@@ -48,28 +48,74 @@ export function CategoryPicker({ value, categories, onChange, onAddCategory }: P
     <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
       <button
         onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
-        className={`flex items-center gap-1 w-full overflow-hidden text-xs px-2 py-1 rounded border transition-colors cursor-pointer text-left ${
-          selected.length
-            ? "border-zinc-600 bg-zinc-800/60 hover:border-zinc-500"
-            : "border-zinc-700 bg-zinc-800/40 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
-        }`}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.25rem",
+          width: "100%",
+          overflow: "hidden",
+          fontSize: "0.75rem",
+          padding: "0 0.5rem",
+          height: "2rem",
+          borderRadius: "var(--radius-lg)",
+          border: selected.length ? "1px solid var(--border)" : "1px solid var(--input)",
+          background: selected.length ? "var(--card)" : "var(--muted)",
+          color: selected.length ? "var(--foreground)" : "var(--muted-foreground)",
+          cursor: "pointer",
+          textAlign: "left",
+          transition: "border-color 120ms ease",
+        }}
       >
-        {selected.length === 0 && <span className="truncate">Set category</span>}
+        {selected.length === 0 && <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Set category</span>}
         {selected.map((c) => (
-          <span key={c} className="px-1.5 py-0.5 rounded bg-zinc-700/70 text-zinc-200 truncate shrink min-w-0">
+          <span
+            key={c}
+            style={{
+              padding: "0.125rem 0.375rem",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--secondary)",
+              color: "var(--secondary-foreground)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              flexShrink: 1,
+              minWidth: 0,
+            }}
+          >
             {c}
           </span>
         ))}
       </button>
 
       {open && (
-        <div className="absolute top-full mt-1 left-0 z-50 w-48 bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl overflow-hidden">
-          <div className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wider text-zinc-500">
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            left: 0,
+            zIndex: 50,
+            width: "12rem",
+            background: "var(--popover)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-popover)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "0.5rem 0.75rem 0.25rem",
+              fontSize: "0.625rem",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              color: "var(--muted-foreground)",
+            }}
+          >
             Up to {MAX} · {selected.length} selected
           </div>
-          <div className="max-h-48 overflow-y-auto">
+          <div style={{ maxHeight: "12rem", overflowY: "auto" }}>
             {categories.length === 0 && (
-              <div className="px-3 py-2 text-xs text-zinc-500">No categories yet</div>
+              <div style={{ padding: "0.5rem 0.75rem", fontSize: "0.75rem", color: "var(--muted-foreground)" }}>No categories yet</div>
             )}
             {categories.map((category) => {
               const isSelected = selected.includes(category);
@@ -79,34 +125,87 @@ export function CategoryPicker({ value, categories, onChange, onAddCategory }: P
                   key={category}
                   disabled={disabled}
                   onClick={(e) => { e.stopPropagation(); toggle(category); }}
-                  className={`w-full flex items-center gap-2 text-left px-3 py-1.5 text-xs transition-colors hover:bg-zinc-800 truncate ${
-                    isSelected ? "text-blue-300 font-medium" : disabled ? "text-zinc-600 cursor-not-allowed" : "text-zinc-300 cursor-pointer"
-                  }`}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    textAlign: "left",
+                    padding: "0.375rem 0.75rem",
+                    fontSize: "0.75rem",
+                    background: isSelected ? "var(--secondary)" : "transparent",
+                    color: isSelected ? "var(--secondary-foreground)" : disabled ? "var(--muted-foreground)" : "var(--foreground)",
+                    cursor: disabled ? "not-allowed" : "pointer",
+                    border: "none",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    transition: "background 80ms ease",
+                  }}
+                  onMouseEnter={(e) => { if (!disabled && !isSelected) e.currentTarget.style.background = "var(--muted)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = isSelected ? "var(--secondary)" : "transparent"; }}
                 >
-                  <span className={`w-3 h-3 shrink-0 rounded-sm border flex items-center justify-center ${isSelected ? "bg-blue-600 border-blue-600 text-white" : "border-zinc-600"}`}>
+                  <span
+                    style={{
+                      width: "0.75rem",
+                      height: "0.75rem",
+                      flexShrink: 0,
+                      borderRadius: "0.125rem",
+                      border: isSelected ? "1px solid var(--foreground)" : "1px solid var(--border)",
+                      background: isSelected ? "var(--foreground)" : "transparent",
+                      color: isSelected ? "var(--background)" : "transparent",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "0.5rem",
+                    }}
+                  >
                     {isSelected && "✓"}
                   </span>
-                  <span className="truncate">{category}</span>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{category}</span>
                 </button>
               );
             })}
           </div>
 
-          <div className="h-px bg-zinc-800" />
+          <div style={{ height: "1px", background: "var(--border)" }} />
 
-          <div className="flex items-center gap-1 px-2 py-2">
+          <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", padding: "0.5rem" }}>
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
               placeholder="New category"
-              className="flex-1 min-w-0 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 focus:border-blue-500 focus:outline-none"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                background: "var(--muted)",
+                border: "1px solid var(--input)",
+                borderRadius: "var(--radius-md)",
+                padding: "0.25rem 0.5rem",
+                fontSize: "0.75rem",
+                color: "var(--foreground)",
+                outline: "none",
+                transition: "box-shadow 120ms ease",
+              }}
+              onFocus={(e) => { e.currentTarget.style.boxShadow = "var(--ring-focus)"; }}
+              onBlur={(e) => { e.currentTarget.style.boxShadow = "none"; }}
             />
             <button
               disabled={!newName.trim() || atMax}
               onClick={(e) => { e.stopPropagation(); add(); }}
-              className="text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded px-2 py-1 transition-colors cursor-pointer"
+              style={{
+                fontSize: "0.75rem",
+                background: "var(--foreground)",
+                color: "var(--background)",
+                borderRadius: "var(--radius-md)",
+                padding: "0.25rem 0.5rem",
+                border: "none",
+                cursor: !newName.trim() || atMax ? "not-allowed" : "pointer",
+                opacity: !newName.trim() || atMax ? 0.4 : 1,
+                transition: "opacity 120ms ease",
+              }}
             >
               Add
             </button>
