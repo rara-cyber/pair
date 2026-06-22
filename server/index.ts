@@ -12,7 +12,7 @@ mkdirSync(join(DATA_DIR, "document-dump"), { recursive: true });
 mkdirSync(join(DATA_DIR, "document-unmatched"), { recursive: true });
 
 const app = express();
-const PORT = 3001;
+const PORT = 3003;
 
 app.use(cors({ origin: "http://localhost:5173" }));
 app.use(express.json());
