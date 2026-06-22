@@ -55,9 +55,9 @@ export function KpiTrendDialog({ open, onClose, metric, baseCurrency, series }: 
               formatter={(v) => [fmtAbbrev(Number(v ?? 0), baseCurrency), cap(metric)]}
             />
             <Bar dataKey={metric}>
-              {shown.map((_, i) => (
+              {shown.map((pt, i) => (
                 <Cell
-                  key={i}
+                  key={pt.key}
                   fill={i === shown.length - 1 ? "var(--foreground)" : "var(--chart-3)"}
                 />
               ))}
@@ -79,10 +79,10 @@ export function KpiTrendDialog({ open, onClose, metric, baseCurrency, series }: 
             <span>Month</span>
             <span style={{ textAlign: "right" }}>{cap(metric)}</span>
           </div>
-          {[...shown].reverse().map((pt, i) => {
+          {[...shown].reverse().map((pt) => {
             const val = pt[metric];
             return (
-              <div key={i} style={{
+              <div key={pt.key} style={{
                 display: "grid", gridTemplateColumns: "1fr auto",
                 padding: "0.375rem 0",
                 borderBottom: "1px solid var(--border)",

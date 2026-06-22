@@ -13,8 +13,6 @@ interface Props {
 export function MilestoneLadder({ title, unitLabel, current, nextLabel, pctToNext, tiers }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", fontFamily: "var(--font-sans)" }}>
-      <style>{`@keyframes ds-ping{75%,100%{transform:scale(2);opacity:0}}`}</style>
-
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "0.5rem" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
           <span style={{ fontSize: "var(--text-sm)", fontWeight: 500 }}>{title}</span>
