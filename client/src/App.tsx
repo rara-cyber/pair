@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTransactions } from "./hooks/useTransactions";
 import { useProgress, type MatchEvent } from "./hooks/useProgress";
-import { useFxRates, convertAmount, CURRENCY_SYMBOLS } from "./hooks/useFxRates";
+import { useFxRates } from "./hooks/useFxRates";
 import { useTheme } from "./hooks/useTheme";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 import { TransactionTable } from "./components/TransactionTable";
@@ -19,13 +19,6 @@ import { FilterTabs } from "./components/ui/FilterTabs";
 import { HeaderControlsMenu } from "./components/HeaderControlsMenu";
 import type { Transaction } from "./types";
 
-
-function fmtAmount(value: number, currency: string): string {
-  const sym = CURRENCY_SYMBOLS[currency] ?? `${currency} `;
-  const abs = Math.abs(value);
-  if (abs >= 1000) return `${sym}${(value / 1000).toFixed(1)}k`;
-  return `${sym}${value.toFixed(0)}`;
-}
 
 interface MatchToast {
   id: number;
@@ -89,7 +82,6 @@ function App() {
     clearFilters,
     documentFilter,
     cycleDocumentFilter,
-    setDocFilter,
     deleteLink,
     applyLiveMatch,
     applyCategory,
@@ -128,20 +120,12 @@ function App() {
 
   const progress = useProgress(handleMatch, applyCategory);
 
-  const linked = stats ? stats.withInvoice + stats.withRemittance : 0;
-  const missing = stats ? stats.total - linked : 0;
-
   // Unique currencies present in the loaded data for the picker
   const availableCurrencies = useMemo(() => {
     const seen = new Set<string>(["EUR"]);
     for (const tx of allTransactions) if (tx.currency) seen.add(tx.currency);
     return Array.from(seen).sort();
   }, [allTransactions]);
-
-  const toBase = (t: Transaction) => convertAmount(t.amount, t.currency, baseCurrency, rates);
-  const income = transactions.filter((t) => t.amount >= 0).reduce((s, t) => s + toBase(t), 0);
-  const expenses = transactions.filter((t) => t.amount < 0).reduce((s, t) => s + toBase(t), 0);
-  const net = income + expenses;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
@@ -240,7 +224,7 @@ function App() {
           </div>
         ) : (
           /* Full desktop header */
-          <div style={{ height: '72px', padding: '0 24px', display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: '20px' }}>
+          <div style={{ height: '72px', padding: '0 24px', maxWidth: 'var(--container-max)', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px' }}>
             {/* Left: branding + tabs */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
               {/* SIÁN brand */}
@@ -294,66 +278,6 @@ function App() {
                 onChange={setView}
               />
             </div>
-
-            {/* Center: KPI strip */}
-            {stats && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '18px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{stats.total}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px' }}>Tx</span>
-                </div>
-                <span style={{ width: '1px', height: '28px', background: 'var(--border)' }}></span>
-
-                <button
-                  onClick={() => setDocFilter(documentFilter === "filled" ? "all" : "filled")}
-                  style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', border: 'none', background: 'none', color: 'inherit'
-                  }}
-                >
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{linked}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px' }}>Linked</span>
-                </button>
-                <span style={{ width: '1px', height: '28px', background: 'var(--border)' }}></span>
-
-                <button
-                  onClick={() => setDocFilter(documentFilter === "empty" ? "all" : "empty")}
-                  style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', border: 'none', background: 'none', color: 'inherit'
-                  }}
-                >
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{missing}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px' }}>Missing</span>
-                </button>
-                <span style={{ width: '1px', height: '28px', background: 'var(--border)' }}></span>
-
-                <button
-                  onClick={() => addFilter("_direction", "income")}
-                  style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', border: 'none', background: 'none', color: 'inherit'
-                  }}
-                >
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(income, baseCurrency)}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px' }}>Income</span>
-                </button>
-                <span style={{ width: '1px', height: '28px', background: 'var(--border)' }}></span>
-
-                <button
-                  onClick={() => addFilter("_direction", "expense")}
-                  style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', border: 'none', background: 'none', color: 'inherit'
-                  }}
-                >
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(expenses, baseCurrency)}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px' }}>Expenses</span>
-                </button>
-                <span style={{ width: '1px', height: '28px', background: 'var(--border)' }}></span>
-
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: net >= 0 ? 'var(--positive)' : 'var(--negative)', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(net, baseCurrency)}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px' }}>Net</span>
-                </div>
-              </div>
-            )}
 
             {/* Right: currency + model + progress */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
