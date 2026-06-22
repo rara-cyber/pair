@@ -94,6 +94,7 @@ function App() {
     updateCategory,
     dateRange,
     setDateRange,
+    refetch,
   } = useTransactions();
 
   const scrollToTransaction = useCallback((txId: string) => {
@@ -143,7 +144,7 @@ function App() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
-      <DropZone />
+      <DropZone onIngested={refetch} />
 
       {/* Match toast notifications */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 items-end">

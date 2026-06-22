@@ -1,18 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export function DropZone() {
+interface Props {
+  onIngested?: () => void;
+}
+
+export function DropZone({ onIngested }: Props = {}) {
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const dragCounter = useRef(0);
 
   const handleFile = useCallback(async (file: File) => {
-    if (!file.name.endsWith(".pdf")) return;
-    setLoading(true);
-    const form = new FormData();
-    form.append("file", file);
-    await fetch("/api/match-pdf", { method: "POST", body: form });
-    setLoading(false);
-  }, []);
+    const lower = file.name.toLowerCase();
+    if (lower.endsWith(".pdf")) {
+      setLoading(true);
+      const form = new FormData(); form.append("file", file);
+      await fetch("/api/match-pdf", { method: "POST", body: form });
+      setLoading(false);
+    } else if (lower.endsWith(".zip")) {
+      setLoading(true);
+      const form = new FormData(); form.append("file", file);
+      await fetch("/api/ingest-zip", { method: "POST", body: form });
+      setLoading(false);
+      onIngested?.();
+    }
+  }, [onIngested]);
 
   useEffect(() => {
     const onDragEnter = (e: DragEvent) => {
@@ -111,12 +122,15 @@ export function DropZone() {
               </svg>
             </div>
             <div style={{ textAlign: "center", maxWidth: "280px" }}>
-              <span style={{ fontSize: "16px", fontWeight: 500, color: "var(--foreground)" }}>
-                Drop PDF to{" "}
+              <div style={{ fontSize: "16px", fontWeight: 500, color: "var(--foreground)" }}>
+                Drop a PDF to{" "}
                 <span style={{ fontFamily: "var(--font-sans)", fontStyle: "italic" }}>
                   match
                 </span>
-              </span>
+              </div>
+              <div style={{ fontSize: "13px", color: "var(--muted-foreground)", marginTop: "6px" }}>
+                or a statement .zip to import
+              </div>
             </div>
           </>
         )}
