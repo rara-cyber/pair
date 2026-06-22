@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card } from "./Card";
 import { StatDelta } from "./StatDelta";
 
@@ -6,11 +7,22 @@ interface Props {
   value: string;
   delta?: { value: string; positive: boolean } | null;
   sub?: string;
+  onClick?: () => void;
 }
 
-export function KpiTile({ label, value, delta, sub }: Props) {
+export function KpiTile({ label, value, delta, sub, onClick }: Props) {
+  const [hovered, setHovered] = useState(false);
   return (
-    <Card style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+    <Card
+      style={{
+        padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.625rem",
+        cursor: onClick ? "pointer" : undefined,
+        boxShadow: onClick && hovered ? "var(--shadow-popover)" : undefined,
+      }}
+      onClick={onClick}
+      onMouseEnter={onClick ? () => setHovered(true) : undefined}
+      onMouseLeave={onClick ? () => setHovered(false) : undefined}
+    >
       <div style={{
         fontSize: "0.75rem", fontWeight: 500, letterSpacing: "0.05em",
         textTransform: "uppercase", color: "var(--muted-foreground)",

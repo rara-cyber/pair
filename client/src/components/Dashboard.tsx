@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Transaction } from "../types";
 import { type FxRates } from "../hooks/useFxRates";
 import { Card, CardContent } from "./ui/Card";
 import { KpiTile } from "./ui/KpiTile";
 import { MilestoneLadder } from "./ui/MilestoneLadder";
-import { kpisFor, coverageLadder, monthlyNetLadder } from "../lib/derive";
+import { KpiTrendDialog } from "./ui/KpiTrendDialog";
+import { kpisFor, coverageLadder, monthlyNetLadder, monthlySeries } from "../lib/derive";
 
 interface Props {
   transactions: Transaction[];
@@ -17,6 +18,8 @@ export function Dashboard({ transactions, stats, baseCurrency, rates }: Props) {
   const kpis = useMemo(() => kpisFor(transactions, baseCurrency, rates), [transactions, baseCurrency, rates]);
   const coverage = useMemo(() => (stats ? coverageLadder(stats) : null), [stats]);
   const netLadder = useMemo(() => monthlyNetLadder(transactions, baseCurrency, rates), [transactions, baseCurrency, rates]);
+  const series = useMemo(() => monthlySeries(transactions, baseCurrency, rates), [transactions, baseCurrency, rates]);
+  const [openMetric, setOpenMetric] = useState<null | "income" | "expenses" | "net">(null);
 
   return (
     <div style={{ maxWidth: "var(--container-max)", margin: "0 auto", padding: "40px 24px 80px" }}>
@@ -31,10 +34,18 @@ export function Dashboard({ transactions, stats, baseCurrency, rates }: Props) {
       </header>
 
       <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "28px" }}>
-        <KpiTile label={`Income · ${kpis.period}`} value={kpis.income.value} delta={kpis.income.delta} sub={kpis.income.sub} />
-        <KpiTile label={`Expenses · ${kpis.period}`} value={kpis.expenses.value} delta={kpis.expenses.delta} sub={kpis.expenses.sub} />
-        <KpiTile label={`Net · ${kpis.period}`} value={kpis.net.value} delta={kpis.net.delta} sub={kpis.net.sub} />
+        <KpiTile label={`Income · ${kpis.period}`} value={kpis.income.value} delta={kpis.income.delta} sub={kpis.income.sub} onClick={() => setOpenMetric("income")} />
+        <KpiTile label={`Expenses · ${kpis.period}`} value={kpis.expenses.value} delta={kpis.expenses.delta} sub={kpis.expenses.sub} onClick={() => setOpenMetric("expenses")} />
+        <KpiTile label={`Net · ${kpis.period}`} value={kpis.net.value} delta={kpis.net.delta} sub={kpis.net.sub} onClick={() => setOpenMetric("net")} />
       </section>
+
+      <KpiTrendDialog
+        open={openMetric !== null}
+        onClose={() => setOpenMetric(null)}
+        metric={openMetric ?? "income"}
+        baseCurrency={baseCurrency}
+        series={series}
+      />
 
       <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: "14px" }}>Goals</div>
 

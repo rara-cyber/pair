@@ -103,6 +103,23 @@ export function monthlyNetLadder(txns: Transaction[], base: string, rates: FxRat
   };
 }
 
+export interface MonthPoint { key: string; label: string; income: number; expenses: number; net: number; }
+
+export function monthlySeries(txns: Transaction[], base: string, rates: FxRates | null): MonthPoint[] {
+  const map = new Map<string, { income: number; expenses: number }>();
+  for (const t of txns) {
+    const k = monthKey(t);
+    if (k === "unknown") continue;
+    const v = convertAmount(t.amount, t.currency, base, rates);
+    const cur = map.get(k) ?? { income: 0, expenses: 0 };
+    if (v >= 0) cur.income += v; else cur.expenses += v;
+    map.set(k, cur);
+  }
+  return [...map.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([key, v]) => ({ key, label: monthLabel(key), income: v.income, expenses: v.expenses, net: v.income + v.expenses }));
+}
+
 export interface KpiData { value: string; delta: { value: string; positive: boolean } | null; sub: string; }
 
 export function kpisFor(txns: Transaction[], base: string, rates: FxRates | null): { income: KpiData; expenses: KpiData; net: KpiData; period: string } {

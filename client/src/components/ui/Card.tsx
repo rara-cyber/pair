@@ -1,10 +1,10 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, MouseEventHandler, ReactNode } from "react";
 
-interface BoxProps { children?: ReactNode; style?: CSSProperties; className?: string; }
+interface BoxProps { children?: ReactNode; style?: CSSProperties; className?: string; onClick?: MouseEventHandler<HTMLDivElement>; onMouseEnter?: MouseEventHandler<HTMLDivElement>; onMouseLeave?: MouseEventHandler<HTMLDivElement>; }
 
-export function Card({ children, style, className }: BoxProps) {
+export function Card({ children, style, className, onClick, onMouseEnter, onMouseLeave }: BoxProps) {
   return (
-    <div className={className} style={{
+    <div className={className} onClick={onClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{
       background: "var(--card)", color: "var(--card-foreground)",
       borderRadius: "var(--radius-xl)", boxShadow: "var(--ring-card)",
       padding: "1rem", ...style,
