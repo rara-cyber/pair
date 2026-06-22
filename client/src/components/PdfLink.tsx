@@ -7,10 +7,10 @@ interface Props {
 }
 
 const METHOD_COLORS: Record<string, string> = {
-  reference: "var(--color-accent)",
-  "amount+date": "var(--color-warn)",
-  "amount+month": "#FF8C42",
-  ai: "var(--color-accent)",
+  reference: "var(--foreground)",
+  "amount+date": "var(--muted-foreground)",
+  "amount+month": "var(--muted-foreground)",
+  ai: "var(--foreground)",
 };
 
 function MethodLabel({ method }: { method: string }) {
@@ -20,7 +20,7 @@ function MethodLabel({ method }: { method: string }) {
       style={{
         fontSize: "9px",
         fontWeight: 500,
-        color: METHOD_COLORS[method] ?? "var(--color-fg-subtle)",
+        color: METHOD_COLORS[method] ?? "var(--muted-foreground)",
         fontFamily: "var(--font-mono)",
         letterSpacing: "0.04em",
         textTransform: "uppercase",
@@ -39,7 +39,7 @@ export function PdfLink({ links, onDelete }: Props) {
     return (
       <span
         style={{
-          color: "var(--color-fg-subtle)",
+          color: "var(--muted-foreground)",
           fontSize: "12px",
           fontFamily: "var(--font-mono)",
           letterSpacing: "0.04em",
@@ -63,8 +63,8 @@ export function PdfLink({ links, onDelete }: Props) {
               gap: "6px",
               padding: "4px 8px",
               borderRadius: "6px",
-              border: isSales ? "1px solid var(--color-accent-25)" : "1px solid var(--color-border-dim)",
-              background: "var(--color-elev-2)",
+              border: "1px solid var(--border)",
+              background: "var(--muted)",
               fontSize: "11px",
               fontFamily: "var(--font-mono)",
               letterSpacing: "0.02em",
@@ -72,22 +72,14 @@ export function PdfLink({ links, onDelete }: Props) {
             }}
             onMouseEnter={(e) => {
               if (!confirming) {
-                e.currentTarget.style.background = "var(--color-elev-1)";
-                if (isSales) {
-                  e.currentTarget.style.borderColor = "var(--color-accent-25)";
-                } else {
-                  e.currentTarget.style.borderColor = "var(--color-border-dim)";
-                }
+                e.currentTarget.style.background = "var(--card)";
+                e.currentTarget.style.borderColor = "var(--border)";
               }
             }}
             onMouseLeave={(e) => {
               if (!confirming) {
-                e.currentTarget.style.background = "var(--color-elev-2)";
-                if (isSales) {
-                  e.currentTarget.style.borderColor = "var(--color-accent-25)";
-                } else {
-                  e.currentTarget.style.borderColor = "var(--color-border-dim)";
-                }
+                e.currentTarget.style.background = "var(--muted)";
+                e.currentTarget.style.borderColor = "var(--border)";
               }
             }}
           >
@@ -97,7 +89,7 @@ export function PdfLink({ links, onDelete }: Props) {
                 fontWeight: 600,
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
-                color: isSales ? "var(--color-accent)" : "var(--color-danger)",
+                color: isSales ? "var(--foreground)" : "var(--destructive)",
                 fontFamily: "var(--font-mono)",
               }}
             >
@@ -108,7 +100,7 @@ export function PdfLink({ links, onDelete }: Props) {
               target="_blank"
               rel="noopener noreferrer"
               style={{
-                color: "var(--color-fg)",
+                color: "var(--foreground)",
                 textDecoration: "none",
                 maxWidth: "140px",
                 overflow: "hidden",
@@ -117,10 +109,10 @@ export function PdfLink({ links, onDelete }: Props) {
                 transition: "color 120ms cubic-bezier(0.22, 1, 0.36, 1)",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.color = "var(--color-accent)";
+                e.currentTarget.style.color = "var(--muted-foreground)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.color = "var(--color-fg)";
+                e.currentTarget.style.color = "var(--foreground)";
               }}
               title={link.filename}
             >
@@ -137,7 +129,7 @@ export function PdfLink({ links, onDelete }: Props) {
                 style={{
                   opacity: 0,
                   marginLeft: "2px",
-                  color: "var(--color-fg-subtle)",
+                  color: "var(--muted-foreground)",
                   fontSize: "10px",
                   lineHeight: 1,
                   border: "none",
@@ -148,11 +140,11 @@ export function PdfLink({ links, onDelete }: Props) {
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.opacity = "1";
-                  e.currentTarget.style.color = "var(--color-danger)";
+                  e.currentTarget.style.color = "var(--destructive)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.opacity = "";
-                  e.currentTarget.style.color = "var(--color-fg-subtle)";
+                  e.currentTarget.style.color = "var(--muted-foreground)";
                 }}
                 title="Remove link"
               >
@@ -162,7 +154,7 @@ export function PdfLink({ links, onDelete }: Props) {
 
             {onDelete && confirming === link.filename && (
               <span style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "4px" }}>
-                <span style={{ fontSize: "10px", color: "var(--color-fg-subtle)" }}>Remove?</span>
+                <span style={{ fontSize: "10px", color: "var(--muted-foreground)" }}>Remove?</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -171,7 +163,7 @@ export function PdfLink({ links, onDelete }: Props) {
                   }}
                   style={{
                     fontSize: "10px",
-                    color: "var(--color-danger)",
+                    color: "var(--destructive)",
                     fontWeight: 500,
                     border: "none",
                     background: "none",
@@ -180,10 +172,12 @@ export function PdfLink({ links, onDelete }: Props) {
                     transition: "color 120ms cubic-bezier(0.22, 1, 0.36, 1)",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "#FF6B6B";
+                    e.currentTarget.style.color = "var(--destructive)";
+                    e.currentTarget.style.opacity = "0.8";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "var(--color-danger)";
+                    e.currentTarget.style.color = "var(--destructive)";
+                    e.currentTarget.style.opacity = "1";
                   }}
                 >
                   Yes
@@ -195,7 +189,7 @@ export function PdfLink({ links, onDelete }: Props) {
                   }}
                   style={{
                     fontSize: "10px",
-                    color: "var(--color-fg-subtle)",
+                    color: "var(--muted-foreground)",
                     border: "none",
                     background: "none",
                     cursor: "pointer",
@@ -203,10 +197,10 @@ export function PdfLink({ links, onDelete }: Props) {
                     transition: "color 120ms cubic-bezier(0.22, 1, 0.36, 1)",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "var(--color-fg)";
+                    e.currentTarget.style.color = "var(--foreground)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "var(--color-fg-subtle)";
+                    e.currentTarget.style.color = "var(--muted-foreground)";
                   }}
                 >
                   No

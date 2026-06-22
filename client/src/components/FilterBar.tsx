@@ -21,8 +21,8 @@ export function FilterBar({ filters, onRemove, onClear, leftContent }: Props) {
         alignItems: "center",
         gap: "16px",
         padding: "14px 24px",
-        borderBottom: "1px solid var(--color-border-dim)",
-        background: "rgba(18,20,24,0.4)",
+        borderBottom: "1px solid var(--border)",
+        background: "var(--card)",
       }}
     >
       {leftContent}
@@ -31,7 +31,7 @@ export function FilterBar({ filters, onRemove, onClear, leftContent }: Props) {
           style={{
             width: "1px",
             height: "18px",
-            background: "var(--color-border-dim)",
+            background: "var(--border)",
           }}
         />
       )}
@@ -46,30 +46,24 @@ export function FilterBar({ filters, onRemove, onClear, leftContent }: Props) {
                   alignItems: "center",
                   gap: "8px",
                   padding: "5px 8px 5px 12px",
-                  border: isMonthFilter(f)
-                    ? "1px solid var(--color-accent-25)"
-                    : "1px solid var(--color-border-dim)",
+                  border: "1px solid var(--border)",
                   borderRadius: "9999px",
                   fontSize: "12px",
-                  background: isMonthFilter(f)
-                    ? "var(--color-accent-10)"
-                    : "var(--color-elev-1)",
+                  background: isMonthFilter(f) ? "var(--muted)" : "var(--card)",
                   fontFamily: "var(--font-mono)",
                   letterSpacing: "0.02em",
                 }}
               >
                 <span
                   style={{
-                    color: "var(--color-fg-subtle)",
+                    color: "var(--muted-foreground)",
                   }}
                 >
                   {f.key === "_month" ? "month" : f.key}
                 </span>
                 <span
                   style={{
-                    color: isMonthFilter(f)
-                    ? "var(--color-accent)"
-                    : "var(--color-white)",
+                    color: "var(--foreground)",
                   }}
                 >
                   {f.value}
@@ -82,7 +76,7 @@ export function FilterBar({ filters, onRemove, onClear, leftContent }: Props) {
                     display: "grid",
                     placeItems: "center",
                     borderRadius: "9999px",
-                    color: "var(--color-fg-subtle)",
+                    color: "var(--muted-foreground)",
                     border: "none",
                     background: "none",
                     cursor: "pointer",
@@ -90,11 +84,11 @@ export function FilterBar({ filters, onRemove, onClear, leftContent }: Props) {
                       "color 120ms cubic-bezier(0.22, 1, 0.36, 1), background 120ms cubic-bezier(0.22, 1, 0.36, 1)",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "var(--color-white)";
-                    e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                    e.currentTarget.style.color = "var(--foreground)";
+                    e.currentTarget.style.background = "var(--muted)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "var(--color-fg-subtle)";
+                    e.currentTarget.style.color = "var(--muted-foreground)";
                     e.currentTarget.style.background = "transparent";
                   }}
                 >
@@ -111,7 +105,7 @@ export function FilterBar({ filters, onRemove, onClear, leftContent }: Props) {
               fontSize: "11px",
               textTransform: "uppercase",
               letterSpacing: "0.16em",
-              color: "var(--color-fg-subtle)",
+              color: "var(--muted-foreground)",
               padding: "5px 10px",
               borderRadius: "9999px",
               border: "1px solid transparent",
@@ -120,11 +114,11 @@ export function FilterBar({ filters, onRemove, onClear, leftContent }: Props) {
               transition: "color 200ms cubic-bezier(0.22, 1, 0.36, 1), border-color 200ms cubic-bezier(0.22, 1, 0.36, 1)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.color = "var(--color-white)";
-              e.currentTarget.style.borderColor = "var(--color-border-dim)";
+              e.currentTarget.style.color = "var(--foreground)";
+              e.currentTarget.style.borderColor = "var(--border)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = "var(--color-fg-subtle)";
+              e.currentTarget.style.color = "var(--muted-foreground)";
               e.currentTarget.style.borderColor = "transparent";
             }}
           >
