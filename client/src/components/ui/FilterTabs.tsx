@@ -3,26 +3,28 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 interface Tab<T extends string> { value: T; label: string; }
 interface Props<T extends string> { tabs: Tab<T>[]; value: T; onChange: (v: T) => void; }
 
+const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
+
 export function FilterTabs<T extends string>({ tabs, value, onChange }: Props<T>) {
   const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const indRef = useRef<HTMLSpanElement>(null);
   const first = useRef(true);
 
-  // Slide the active-tab indicator to the selected button. Done imperatively
-  // (no setState) so it never triggers an extra render; the very first position
-  // is applied without a transition so only subsequent changes animate.
+  // Slide the active-tab indicator to the selected button. Position is animated
+  // via `transform: translateX` (GPU-composited → smooth); width transitions too.
+  // Done imperatively (no setState → no extra render); the first position is
+  // applied without a transition so only subsequent changes animate.
   const place = () => {
     const btn = btnRefs.current[value];
     const ind = indRef.current;
     if (!btn || !ind) return;
     if (first.current) ind.style.transition = "none";
-    ind.style.left = `${btn.offsetLeft}px`;
+    ind.style.transform = `translateX(${btn.offsetLeft}px)`;
     ind.style.width = `${btn.offsetWidth}px`;
     ind.style.opacity = "1";
     if (first.current) {
       void ind.offsetWidth; // flush layout so the next change animates
-      ind.style.transition =
-        "left 240ms cubic-bezier(0.4, 0, 0.2, 1), width 240ms cubic-bezier(0.4, 0, 0.2, 1)";
+      ind.style.transition = `transform 260ms ${EASE}, width 260ms ${EASE}`;
       first.current = false;
     }
   };
@@ -46,6 +48,7 @@ export function FilterTabs<T extends string>({ tabs, value, onChange }: Props<T>
         aria-hidden
         style={{
           position: "absolute", top: "3px", bottom: "3px", left: 0, width: 0, opacity: 0,
+          transform: "translateX(0)", willChange: "transform, width",
           background: "var(--primary)", borderRadius: "var(--radius-full)", zIndex: 0,
         }}
       />

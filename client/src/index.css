@@ -151,6 +151,10 @@
   100% { box-shadow: 0 0 0 0 transparent; }
 }
 
+/* Always reserve the scrollbar gutter so centered content (header/nav) doesn't
+   shift horizontally between short (Settings) and tall (Overview) pages. */
+html { scrollbar-gutter: stable; }
+
 body {
   margin: 0;
   background-color: var(--background);
