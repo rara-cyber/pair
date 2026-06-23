@@ -3,38 +3,58 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 interface Tab<T extends string> { value: T; label: string; }
 interface Props<T extends string> { tabs: Tab<T>[]; value: T; onChange: (v: T) => void; }
 
-const EASE = "linear";
+const DURATION = 260;
+const EASE = "linear"; // constant speed — no accelerate-in / decelerate-out
 
 export function FilterTabs<T extends string>({ tabs, value, onChange }: Props<T>) {
   const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const indRef = useRef<HTMLSpanElement>(null);
-  const first = useRef(true);
+  const prevRect = useRef<{ left: number; width: number } | null>(null);
+  const lastValue = useRef<T | null>(null);
 
-  // Slide the active-tab indicator to the selected button. Position is animated
-  // via `transform: translateX` (GPU-composited → smooth); width transitions too.
-  // Done imperatively (no setState → no extra render); the first position is
-  // applied without a transition so only subsequent changes animate.
-  const place = () => {
+  // Move the active-tab indicator. Uses the FLIP trick: the real width is set
+  // instantly, then ONLY `transform` (translateX + scaleX) is animated, so the
+  // whole motion runs on the GPU compositor (no per-frame layout/paint). It
+  // settles at scaleX(1) so the resting pill is never distorted.
+  useLayoutEffect(() => {
     const btn = btnRefs.current[value];
     const ind = indRef.current;
     if (!btn || !ind) return;
-    if (first.current) ind.style.transition = "none";
-    ind.style.transform = `translateX(${btn.offsetLeft}px)`;
-    ind.style.width = `${btn.offsetWidth}px`;
-    ind.style.opacity = "1";
-    if (first.current) {
-      void ind.offsetWidth; // flush layout so the next change animates
-      ind.style.transition = `transform 200ms ${EASE}, width 200ms ${EASE}`;
-      first.current = false;
-    }
-  };
+    const left = btn.offsetLeft;
+    const width = btn.offsetWidth;
+    const prev = prevRect.current;
 
-  useLayoutEffect(place); // re-position on every render (value/label/width changes)
+    if (prev && lastValue.current !== null && lastValue.current !== value) {
+      // final geometry now (no transition), shown at the previous rect via transform…
+      ind.style.transition = "none";
+      ind.style.width = `${width}px`;
+      ind.style.transform = `translateX(${prev.left}px) scaleX(${prev.width / width})`;
+      void ind.offsetWidth; // flush, then play transform to identity
+      ind.style.transition = `transform ${DURATION}ms ${EASE}`;
+      ind.style.transform = `translateX(${left}px) scaleX(1)`;
+    } else {
+      // initial placement — no animation
+      ind.style.transition = "none";
+      ind.style.width = `${width}px`;
+      ind.style.transform = `translateX(${left}px) scaleX(1)`;
+      ind.style.opacity = "1";
+    }
+    prevRect.current = { left, width };
+    lastValue.current = value;
+  }, [value]);
 
   useEffect(() => {
-    window.addEventListener("resize", place);
-    return () => window.removeEventListener("resize", place);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const onResize = () => {
+      const btn = btnRefs.current[value];
+      const ind = indRef.current;
+      if (!btn || !ind) return;
+      ind.style.transition = "none";
+      ind.style.width = `${btn.offsetWidth}px`;
+      ind.style.transform = `translateX(${btn.offsetLeft}px) scaleX(1)`;
+      prevRect.current = { left: btn.offsetLeft, width: btn.offsetWidth };
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, [value]);
 
   return (
@@ -48,7 +68,7 @@ export function FilterTabs<T extends string>({ tabs, value, onChange }: Props<T>
         aria-hidden
         style={{
           position: "absolute", top: "3px", bottom: "3px", left: 0, width: 0, opacity: 0,
-          transform: "translateX(0)", willChange: "transform, width",
+          transform: "translateX(0) scaleX(1)", transformOrigin: "left center", willChange: "transform",
           background: "var(--primary)", borderRadius: "var(--radius-full)", zIndex: 0,
         }}
       />
