@@ -151,6 +151,10 @@
   100% { box-shadow: 0 0 0 0 transparent; }
 }
 
+/* Always reserve the scrollbar gutter so centered content (header/nav) doesn't
+   shift horizontally between short (Settings) and tall (Overview) pages. */
+html { scrollbar-gutter: stable; }
+
 body {
   margin: 0;
   background-color: var(--background);
@@ -159,3 +163,11 @@ body {
 }
 ::selection { background: var(--foreground); color: var(--background); }
 #root { min-height: 100vh; }
+
+/* charts are click-to-cycle; suppress the browser focus ring on recharts (wrapper + any focused data element) */
+.recharts-wrapper:focus,
+.recharts-wrapper:focus-visible,
+.recharts-wrapper :focus,
+.recharts-wrapper :focus-visible,
+.recharts-surface:focus,
+.recharts-surface:focus-visible { outline: none !important; }

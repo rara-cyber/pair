@@ -1,29 +1,49 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 interface Props {
   value?: string[];
   categories: string[];
   onChange: (categories: string[]) => void;
   onAddCategory: (name: string) => void;
+  maxWidth?: number;
 }
 
 const MAX = 3;
 
-export function CategoryPicker({ value, categories, onChange, onAddCategory }: Props) {
+export function CategoryPicker({ value, categories, onChange, onAddCategory, maxWidth }: Props) {
   const [open, setOpen] = useState(false);
   const [newName, setNewName] = useState("");
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
 
   const selected = value ?? [];
   const atMax = selected.length >= MAX;
+  const sortedCategories = [...categories].sort((a, b) => a.localeCompare(b));
+
+  const openMenu = () => {
+    const r = buttonRef.current?.getBoundingClientRect();
+    if (r) setPos({ top: r.bottom + 4, left: Math.min(r.left, window.innerWidth - 200) });
+    setOpen(true);
+  };
 
   useEffect(() => {
     if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!ref.current?.contains(t) && !popRef.current?.contains(t)) setOpen(false);
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    const close = () => setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true); // capture: also catch the table's scroll container
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    };
   }, [open]);
 
   const toggle = (category: string) => {
@@ -47,15 +67,20 @@ export function CategoryPicker({ value, categories, onChange, onAddCategory }: P
   return (
     <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
       <button
-        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+        ref={buttonRef}
+        onClick={(e) => { e.stopPropagation(); open ? setOpen(false) : openMenu(); }}
         onMouseEnter={(e) => { e.currentTarget.style.background = "var(--muted)"; }}
         onMouseLeave={(e) => { e.currentTarget.style.background = "var(--card)"; }}
+        onFocus={(e) => { e.currentTarget.style.boxShadow = "var(--ring-focus)"; }}
+        onBlur={(e) => { e.currentTarget.style.boxShadow = "none"; }}
         style={{
           display: "flex",
           alignItems: "center",
           gap: "0.25rem",
           width: "100%",
+          maxWidth: maxWidth ? `${maxWidth}px` : undefined,
           overflow: "hidden",
+          outline: "none",
           fontSize: "0.75rem",
           padding: "0 0.5rem",
           height: "2rem",
@@ -89,13 +114,15 @@ export function CategoryPicker({ value, categories, onChange, onAddCategory }: P
         ))}
       </button>
 
-      {open && (
+      {open && pos && createPortal(
         <div
+          ref={popRef}
+          onClick={(e) => e.stopPropagation()}
           style={{
-            position: "absolute",
-            top: "calc(100% + 4px)",
-            left: 0,
-            zIndex: 50,
+            position: "fixed",
+            top: pos.top,
+            left: pos.left,
+            zIndex: 100,
             width: "12rem",
             background: "var(--popover)",
             border: "1px solid var(--border)",
@@ -119,7 +146,7 @@ export function CategoryPicker({ value, categories, onChange, onAddCategory }: P
             {categories.length === 0 && (
               <div style={{ padding: "0.5rem 0.75rem", fontSize: "0.75rem", color: "var(--muted-foreground)" }}>No categories yet</div>
             )}
-            {categories.map((category) => {
+            {sortedCategories.map((category) => {
               const isSelected = selected.includes(category);
               const disabled = !isSelected && atMax;
               return (
@@ -212,7 +239,8 @@ export function CategoryPicker({ value, categories, onChange, onAddCategory }: P
               Add
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -5,12 +5,13 @@ import type { FxRates } from "../hooks/useFxRates";
 import { categoryTotals, fmtAbbrev } from "../lib/derive";
 import { Card } from "./ui/Card";
 import { FilterTabs } from "./ui/FilterTabs";
+import { activePresetKey, nextRangeKey, rangeForKey, labelForKey } from "../lib/dateRanges";
 
 const RAMP = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 
-interface Props { transactions: Transaction[]; baseCurrency: string; rates: FxRates | null; }
+interface Props { transactions: Transaction[]; baseCurrency: string; rates: FxRates | null; dateRange: { from: string | null; to: string | null }; onRangeChange: (from: string | null, to: string | null) => void; }
 
-export function CategoryDonut({ transactions, baseCurrency, rates }: Props) {
+export function CategoryDonut({ transactions, baseCurrency, rates, dateRange, onRangeChange }: Props) {
   const [mode, setMode] = useState<"income" | "expenses">("expenses");
   const [hovering, setHovering] = useState(false);
   const all = useMemo(() => categoryTotals(transactions, baseCurrency, rates, mode), [transactions, baseCurrency, rates, mode]);
@@ -25,13 +26,15 @@ export function CategoryDonut({ transactions, baseCurrency, rates }: Props) {
   }, [all]);
   const total = useMemo(() => all.reduce((s, x) => s + x.amount, 0), [all]);
   const colorFor = (i: number) => RAMP[i % RAMP.length];
+  const rangeLabel = labelForKey(activePresetKey(dateRange));
+  const cycleRange = () => { const r = rangeForKey(nextRangeKey(activePresetKey(dateRange))); onRangeChange(r.from, r.to); };
 
   return (
     <Card style={{ padding: "1.25rem" }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "0.75rem", marginBottom: "0.75rem" }}>
         <div>
           <div style={{ fontFamily: "var(--font-heading)", fontSize: "1rem", fontWeight: 500 }}>Costs by category</div>
-          <div style={{ fontSize: "0.875rem", color: "var(--muted-foreground)" }}>Share of {mode}</div>
+          <div style={{ fontSize: "0.875rem", color: "var(--muted-foreground)" }}>{`Share of ${mode} · ${rangeLabel}`}</div>
         </div>
         <FilterTabs tabs={[{ value: "income", label: "Income" }, { value: "expenses", label: "Expenses" }]} value={mode} onChange={setMode} />
       </div>
@@ -40,9 +43,9 @@ export function CategoryDonut({ transactions, baseCurrency, rates }: Props) {
         <div style={{ height: "240px", display: "grid", placeItems: "center", color: "var(--muted-foreground)", fontSize: "0.875rem" }}>No {mode} in range</div>
       ) : (
         <>
-          <div style={{ position: "relative" }} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
+          <div onClick={cycleRange} style={{ position: "relative", cursor: "pointer" }} title="Click to cycle the date range" onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
             <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
+              <PieChart accessibilityLayer={false}>
                 <Pie data={slices} dataKey="amount" nameKey="name" innerRadius="62%" outerRadius="88%" paddingAngle={1} stroke="var(--card)" strokeWidth={2}>
                   {slices.map((_, i) => <Cell key={i} fill={colorFor(i)} />)}
                 </Pie>

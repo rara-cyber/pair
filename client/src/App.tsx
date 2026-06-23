@@ -359,6 +359,8 @@ function App() {
             stats={stats}
             baseCurrency={baseCurrency}
             rates={rates}
+            dateRange={dateRange}
+            onRangeChange={setDateRange}
           />
         )}
         {!loading && view === "transactions" && (
