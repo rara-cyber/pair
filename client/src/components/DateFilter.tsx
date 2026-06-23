@@ -1,78 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-
-interface DateRange {
-  from: string | null;
-  to: string | null;
-}
+import { DATE_PRESETS } from "../lib/dateRanges";
 
 interface Props {
-  dateRange: DateRange;
+  dateRange: { from: string | null; to: string | null };
   onChange: (from: string | null, to: string | null) => void;
 }
-
-interface Preset {
-  key: string;
-  label: string;
-  getRange: () => DateRange;
-}
-
-function buildPresets(): Preset[] {
-  const today = new Date();
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
-
-  return [
-    {
-      key: "this-month",
-      label: "This month",
-      getRange: () => ({
-        from: fmt(new Date(today.getFullYear(), today.getMonth(), 1)),
-        to: fmt(new Date(today.getFullYear(), today.getMonth() + 1, 0)),
-      }),
-    },
-    {
-      key: "last-month",
-      label: "Last month",
-      getRange: () => ({
-        from: fmt(new Date(today.getFullYear(), today.getMonth() - 1, 1)),
-        to: fmt(new Date(today.getFullYear(), today.getMonth(), 0)),
-      }),
-    },
-    {
-      key: "last-3",
-      label: "Last 3 months",
-      getRange: () => ({
-        from: fmt(new Date(today.getFullYear(), today.getMonth() - 3, today.getDate())),
-        to: fmt(today),
-      }),
-    },
-    {
-      key: "last-6",
-      label: "Last 6 months",
-      getRange: () => ({
-        from: fmt(new Date(today.getFullYear(), today.getMonth() - 6, today.getDate())),
-        to: fmt(today),
-      }),
-    },
-    {
-      key: "this-year",
-      label: "This year",
-      getRange: () => ({
-        from: fmt(new Date(today.getFullYear(), 0, 1)),
-        to: fmt(new Date(today.getFullYear(), 11, 31)),
-      }),
-    },
-    {
-      key: "last-year",
-      label: "Last year",
-      getRange: () => ({
-        from: fmt(new Date(today.getFullYear() - 1, 0, 1)),
-        to: fmt(new Date(today.getFullYear() - 1, 11, 31)),
-      }),
-    },
-  ];
-}
-
-const PRESETS = buildPresets();
 
 export function DateFilter({ dateRange, onChange }: Props) {
   const [open, setOpen] = useState(false);
@@ -95,7 +27,7 @@ export function DateFilter({ dateRange, onChange }: Props) {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const presets = PRESETS;
+  const presets = DATE_PRESETS;
   const isActive = dateRange.from !== null || dateRange.to !== null;
 
   const activePreset = presets.find((p) => {

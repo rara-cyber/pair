@@ -4,18 +4,22 @@ import type { Transaction } from "../types";
 import type { FxRates } from "../hooks/useFxRates";
 import { topMerchants, fmtAbbrev } from "../lib/derive";
 import { Card } from "./ui/Card";
+import { RangeToggle } from "./ui/RangeToggle";
 
-interface Props { transactions: Transaction[]; baseCurrency: string; rates: FxRates | null; }
+interface Props { transactions: Transaction[]; baseCurrency: string; rates: FxRates | null; dateRange: { from: string | null; to: string | null }; onRangeChange: (from: string | null, to: string | null) => void; }
 
-export function TopMerchantsChart({ transactions, baseCurrency, rates }: Props) {
+export function TopMerchantsChart({ transactions, baseCurrency, rates, dateRange, onRangeChange }: Props) {
   const data = useMemo(() => topMerchants(transactions, baseCurrency, rates, 8), [transactions, baseCurrency, rates]);
 
   return (
     <Card style={{ padding: "1.25rem" }}>
-      <div style={{ marginBottom: "0.75rem" }}>
+      <div style={{ marginBottom: "0.25rem" }}>
         <div style={{ fontFamily: "var(--font-heading)", fontSize: "1rem", fontWeight: 500 }}>Top merchants by spend</div>
         <div style={{ fontSize: "0.875rem", color: "var(--muted-foreground)" }}>Largest payees (expenses)</div>
       </div>
+
+      <div style={{ margin: "0 0 0.75rem" }}><RangeToggle dateRange={dateRange} onChange={onRangeChange} /></div>
+
       {data.length === 0 ? (
         <div style={{ height: "240px", display: "grid", placeItems: "center", color: "var(--muted-foreground)", fontSize: "0.875rem" }}>No expenses in range</div>
       ) : (

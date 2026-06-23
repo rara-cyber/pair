@@ -15,9 +15,11 @@ interface Props {
   stats: { total: number; withInvoice: number; withRemittance: number } | null;
   baseCurrency: string;
   rates: FxRates | null;
+  dateRange: { from: string | null; to: string | null };
+  onRangeChange: (from: string | null, to: string | null) => void;
 }
 
-export function Dashboard({ transactions, stats, baseCurrency, rates }: Props) {
+export function Dashboard({ transactions, stats, baseCurrency, rates, dateRange, onRangeChange }: Props) {
   const kpis = useMemo(() => kpisFor(transactions, baseCurrency, rates), [transactions, baseCurrency, rates]);
   const coverage = useMemo(() => (stats ? coverageLadder(stats) : null), [stats]);
   const series = useMemo(() => monthlySeries(transactions, baseCurrency, rates), [transactions, baseCurrency, rates]);
@@ -53,11 +55,11 @@ export function Dashboard({ transactions, stats, baseCurrency, rates }: Props) {
       />
 
       <div style={{ marginTop: "28px" }}>
-        <CategoryStackChart transactions={transactions} baseCurrency={baseCurrency} rates={rates} />
+        <CategoryStackChart transactions={transactions} baseCurrency={baseCurrency} rates={rates} dateRange={dateRange} onRangeChange={onRangeChange} />
       </div>
       <div style={{ marginTop: "12px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "12px" }}>
-        <CategoryDonut transactions={transactions} baseCurrency={baseCurrency} rates={rates} />
-        <TopMerchantsChart transactions={transactions} baseCurrency={baseCurrency} rates={rates} />
+        <CategoryDonut transactions={transactions} baseCurrency={baseCurrency} rates={rates} dateRange={dateRange} onRangeChange={onRangeChange} />
+        <TopMerchantsChart transactions={transactions} baseCurrency={baseCurrency} rates={rates} dateRange={dateRange} onRangeChange={onRangeChange} />
       </div>
     </div>
   );

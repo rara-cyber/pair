@@ -5,12 +5,13 @@ import type { FxRates } from "../hooks/useFxRates";
 import { categoryMonthly, fmtAbbrev } from "../lib/derive";
 import { Card } from "./ui/Card";
 import { FilterTabs } from "./ui/FilterTabs";
+import { RangeToggle } from "./ui/RangeToggle";
 
 const RAMP = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 
-interface Props { transactions: Transaction[]; baseCurrency: string; rates: FxRates | null; }
+interface Props { transactions: Transaction[]; baseCurrency: string; rates: FxRates | null; dateRange: { from: string | null; to: string | null }; onRangeChange: (from: string | null, to: string | null) => void; }
 
-export function CategoryStackChart({ transactions, baseCurrency, rates }: Props) {
+export function CategoryStackChart({ transactions, baseCurrency, rates, dateRange, onRangeChange }: Props) {
   const [mode, setMode] = useState<"income" | "expenses">("income");
   const { data, categories } = useMemo(
     () => categoryMonthly(transactions, baseCurrency, rates, mode),
@@ -31,6 +32,8 @@ export function CategoryStackChart({ transactions, baseCurrency, rates }: Props)
           onChange={setMode}
         />
       </div>
+
+      <div style={{ margin: "0 0 0.75rem" }}><RangeToggle dateRange={dateRange} onChange={onRangeChange} /></div>
 
       {/* legend */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem 1rem", margin: "0.75rem 0 1rem" }}>

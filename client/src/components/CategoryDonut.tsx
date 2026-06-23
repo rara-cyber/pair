@@ -5,12 +5,13 @@ import type { FxRates } from "../hooks/useFxRates";
 import { categoryTotals, fmtAbbrev } from "../lib/derive";
 import { Card } from "./ui/Card";
 import { FilterTabs } from "./ui/FilterTabs";
+import { RangeToggle } from "./ui/RangeToggle";
 
 const RAMP = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 
-interface Props { transactions: Transaction[]; baseCurrency: string; rates: FxRates | null; }
+interface Props { transactions: Transaction[]; baseCurrency: string; rates: FxRates | null; dateRange: { from: string | null; to: string | null }; onRangeChange: (from: string | null, to: string | null) => void; }
 
-export function CategoryDonut({ transactions, baseCurrency, rates }: Props) {
+export function CategoryDonut({ transactions, baseCurrency, rates, dateRange, onRangeChange }: Props) {
   const [mode, setMode] = useState<"income" | "expenses">("expenses");
   const [hovering, setHovering] = useState(false);
   const all = useMemo(() => categoryTotals(transactions, baseCurrency, rates, mode), [transactions, baseCurrency, rates, mode]);
@@ -35,6 +36,8 @@ export function CategoryDonut({ transactions, baseCurrency, rates }: Props) {
         </div>
         <FilterTabs tabs={[{ value: "income", label: "Income" }, { value: "expenses", label: "Expenses" }]} value={mode} onChange={setMode} />
       </div>
+
+      <div style={{ margin: "0 0 0.75rem" }}><RangeToggle dateRange={dateRange} onChange={onRangeChange} /></div>
 
       {slices.length === 0 ? (
         <div style={{ height: "240px", display: "grid", placeItems: "center", color: "var(--muted-foreground)", fontSize: "0.875rem" }}>No {mode} in range</div>
