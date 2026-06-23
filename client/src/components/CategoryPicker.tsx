@@ -21,6 +21,7 @@ export function CategoryPicker({ value, categories, onChange, onAddCategory, max
 
   const selected = value ?? [];
   const atMax = selected.length >= MAX;
+  const sortedCategories = [...categories].sort((a, b) => a.localeCompare(b));
 
   const openMenu = () => {
     const r = buttonRef.current?.getBoundingClientRect();
@@ -145,7 +146,7 @@ export function CategoryPicker({ value, categories, onChange, onAddCategory, max
             {categories.length === 0 && (
               <div style={{ padding: "0.5rem 0.75rem", fontSize: "0.75rem", color: "var(--muted-foreground)" }}>No categories yet</div>
             )}
-            {categories.map((category) => {
+            {sortedCategories.map((category) => {
               const isSelected = selected.includes(category);
               const disabled = !isSelected && atMax;
               return (
