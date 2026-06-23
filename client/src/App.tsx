@@ -333,7 +333,7 @@ function App() {
                 onChange={(e) => { if (e.target.value) addFilter("_category", e.target.value); }}
               >
                 <option value="">All categories</option>
-                {categories.map((c) => (
+                {[...categories].sort((a, b) => a.localeCompare(b)).map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </Select>
