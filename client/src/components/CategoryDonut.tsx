@@ -5,7 +5,7 @@ import type { FxRates } from "../hooks/useFxRates";
 import { categoryTotals, fmtAbbrev } from "../lib/derive";
 import { Card } from "./ui/Card";
 import { FilterTabs } from "./ui/FilterTabs";
-import { RangeToggle } from "./ui/RangeToggle";
+import { activePresetKey, nextRangeKey, rangeForKey, labelForKey } from "../lib/dateRanges";
 
 const RAMP = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 
@@ -26,24 +26,24 @@ export function CategoryDonut({ transactions, baseCurrency, rates, dateRange, on
   }, [all]);
   const total = useMemo(() => all.reduce((s, x) => s + x.amount, 0), [all]);
   const colorFor = (i: number) => RAMP[i % RAMP.length];
+  const rangeLabel = labelForKey(activePresetKey(dateRange));
+  const cycleRange = () => { const r = rangeForKey(nextRangeKey(activePresetKey(dateRange))); onRangeChange(r.from, r.to); };
 
   return (
     <Card style={{ padding: "1.25rem" }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "0.75rem", marginBottom: "0.75rem" }}>
         <div>
           <div style={{ fontFamily: "var(--font-heading)", fontSize: "1rem", fontWeight: 500 }}>Costs by category</div>
-          <div style={{ fontSize: "0.875rem", color: "var(--muted-foreground)" }}>Share of {mode}</div>
+          <div style={{ fontSize: "0.875rem", color: "var(--muted-foreground)" }}>{`Share of ${mode} · ${rangeLabel}`}</div>
         </div>
         <FilterTabs tabs={[{ value: "income", label: "Income" }, { value: "expenses", label: "Expenses" }]} value={mode} onChange={setMode} />
       </div>
-
-      <div style={{ margin: "0 0 0.75rem" }}><RangeToggle dateRange={dateRange} onChange={onRangeChange} /></div>
 
       {slices.length === 0 ? (
         <div style={{ height: "240px", display: "grid", placeItems: "center", color: "var(--muted-foreground)", fontSize: "0.875rem" }}>No {mode} in range</div>
       ) : (
         <>
-          <div style={{ position: "relative" }} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
+          <div onClick={cycleRange} style={{ position: "relative", cursor: "pointer" }} title="Click to cycle the date range" onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
             <ResponsiveContainer width="100%" height={240}>
               <PieChart>
                 <Pie data={slices} dataKey="amount" nameKey="name" innerRadius="62%" outerRadius="88%" paddingAngle={1} stroke="var(--card)" strokeWidth={2}>

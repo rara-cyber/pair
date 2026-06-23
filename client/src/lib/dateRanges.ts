@@ -37,3 +37,16 @@ export const RANGE_TOGGLE: { key: string; label: string }[] = [
   { key: "this-year", label: "This year" },
   { key: "last-year", label: "Last year" },
 ];
+
+// Order the chart click cycles through.
+export const RANGE_CYCLE = ["all", "this-month", "last-month", "last-3", "this-year", "last-year"];
+
+export function nextRangeKey(current: string): string {
+  const i = RANGE_CYCLE.indexOf(current);
+  return RANGE_CYCLE[(i + 1) % RANGE_CYCLE.length];
+}
+
+export function labelForKey(key: string): string {
+  const found = RANGE_TOGGLE.find((r) => r.key === key);
+  return found ? found.label : "Custom";
+}
