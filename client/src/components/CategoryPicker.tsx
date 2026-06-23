@@ -35,18 +35,22 @@ export function CategoryPicker({ value, categories, onChange, onAddCategory, max
       const t = e.target as Node;
       if (!ref.current?.contains(t) && !popRef.current?.contains(t)) setOpen(false);
     };
-    const close = () => setOpen(false);
+    const reposition = () => {
+      const r = buttonRef.current?.getBoundingClientRect();
+      if (r) setPos({ top: r.bottom + 4, left: Math.min(r.left, window.innerWidth - 200) });
+    };
     const onScroll = (e: Event) => {
-      // ignore scrolling inside the menu's own list; close only on page/table scroll
+      // scrolling inside the menu's own list → leave it alone;
+      // page/table scroll → follow the trigger instead of vanishing
       if (popRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
+      reposition();
     };
     document.addEventListener("mousedown", onDown);
-    window.addEventListener("resize", close);
+    window.addEventListener("resize", reposition);
     window.addEventListener("scroll", onScroll, true); // capture: also catch the table's scroll container
     return () => {
       document.removeEventListener("mousedown", onDown);
-      window.removeEventListener("resize", close);
+      window.removeEventListener("resize", reposition);
       window.removeEventListener("scroll", onScroll, true);
     };
   }, [open]);
@@ -147,7 +151,7 @@ export function CategoryPicker({ value, categories, onChange, onAddCategory, max
           >
             Up to {MAX} · {selected.length} selected
           </div>
-          <div style={{ maxHeight: "12rem", overflowY: "auto" }}>
+          <div style={{ maxHeight: "12rem", overflowY: "auto", overscrollBehavior: "contain" }}>
             {categories.length === 0 && (
               <div style={{ padding: "0.5rem 0.75rem", fontSize: "0.75rem", color: "var(--muted-foreground)" }}>No categories yet</div>
             )}
