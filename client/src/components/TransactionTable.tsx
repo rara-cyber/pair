@@ -443,6 +443,7 @@ export function TransactionTable({
                     categories={categories}
                     onChange={(cats) => onCategoryChange(tx.transferWiseId, cats)}
                     onAddCategory={onAddCategory}
+                    maxWidth={categoryWidth - 28}
                   />
                 </td>
                 <td

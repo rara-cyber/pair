@@ -5,11 +5,12 @@ interface Props {
   categories: string[];
   onChange: (categories: string[]) => void;
   onAddCategory: (name: string) => void;
+  maxWidth?: number;
 }
 
 const MAX = 3;
 
-export function CategoryPicker({ value, categories, onChange, onAddCategory }: Props) {
+export function CategoryPicker({ value, categories, onChange, onAddCategory, maxWidth }: Props) {
   const [open, setOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -50,12 +51,16 @@ export function CategoryPicker({ value, categories, onChange, onAddCategory }: P
         onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
         onMouseEnter={(e) => { e.currentTarget.style.background = "var(--muted)"; }}
         onMouseLeave={(e) => { e.currentTarget.style.background = "var(--card)"; }}
+        onFocus={(e) => { e.currentTarget.style.boxShadow = "var(--ring-focus)"; }}
+        onBlur={(e) => { e.currentTarget.style.boxShadow = "none"; }}
         style={{
           display: "flex",
           alignItems: "center",
           gap: "0.25rem",
           width: "100%",
+          maxWidth: maxWidth ? `${maxWidth}px` : undefined,
           overflow: "hidden",
+          outline: "none",
           fontSize: "0.75rem",
           padding: "0 0.5rem",
           height: "2rem",
