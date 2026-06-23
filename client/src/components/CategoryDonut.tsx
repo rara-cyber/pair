@@ -45,7 +45,7 @@ export function CategoryDonut({ transactions, baseCurrency, rates, dateRange, on
         <>
           <div onClick={cycleRange} style={{ position: "relative", cursor: "pointer" }} title="Click to cycle the date range" onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
             <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
+              <PieChart accessibilityLayer={false}>
                 <Pie data={slices} dataKey="amount" nameKey="name" innerRadius="62%" outerRadius="88%" paddingAngle={1} stroke="var(--card)" strokeWidth={2}>
                   {slices.map((_, i) => <Cell key={i} fill={colorFor(i)} />)}
                 </Pie>

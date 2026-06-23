@@ -33,7 +33,7 @@ export function KpiTrendDialog({ open, onClose, metric, baseCurrency, series }: 
 
       <DialogBody>
         <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={shown} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+          <BarChart data={shown} margin={{ top: 4, right: 0, bottom: 0, left: 0 }} accessibilityLayer={false}>
             <CartesianGrid vertical={false} stroke="var(--border)" />
             <XAxis
               dataKey="label"

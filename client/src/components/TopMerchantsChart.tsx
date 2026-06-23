@@ -25,7 +25,7 @@ export function TopMerchantsChart({ transactions, baseCurrency, rates, dateRange
           <div style={{ height: "240px", display: "grid", placeItems: "center", color: "var(--muted-foreground)", fontSize: "0.875rem" }}>No expenses in range</div>
         ) : (
           <ResponsiveContainer width="100%" height={Math.max(240, data.length * 34)}>
-            <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 8 }}>
+            <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 8 }} accessibilityLayer={false}>
               <CartesianGrid horizontal={false} stroke="var(--border)" />
               <XAxis type="number" tickFormatter={(v) => fmtAbbrev(Number(v), baseCurrency)} tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis type="category" dataKey="name" width={140} tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} axisLine={false} tickLine={false} />

@@ -160,8 +160,10 @@ body {
 ::selection { background: var(--foreground); color: var(--background); }
 #root { min-height: 100vh; }
 
-/* charts are click-to-cycle; suppress the browser focus ring on the recharts surface/wrapper */
+/* charts are click-to-cycle; suppress the browser focus ring on recharts (wrapper + any focused data element) */
 .recharts-wrapper:focus,
 .recharts-wrapper:focus-visible,
+.recharts-wrapper :focus,
+.recharts-wrapper :focus-visible,
 .recharts-surface:focus,
-.recharts-surface:focus-visible { outline: none; }
+.recharts-surface:focus-visible { outline: none !important; }

@@ -50,7 +50,7 @@ export function CategoryStackChart({ transactions, baseCurrency, rates, dateRang
           <div style={{ height: "240px", display: "grid", placeItems: "center", color: "var(--muted-foreground)", fontSize: "0.875rem" }}>No {mode} in range</div>
         ) : (
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
+            <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 8 }} accessibilityLayer={false}>
               <CartesianGrid vertical={false} stroke="var(--border)" />
               <XAxis dataKey="label" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={(v) => fmtAbbrev(Number(v), baseCurrency)} tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} axisLine={false} tickLine={false} width={56} />
