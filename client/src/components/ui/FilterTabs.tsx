@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 interface Tab<T extends string> { value: T; label: string; }
 interface Props<T extends string> { tabs: Tab<T>[]; value: T; onChange: (v: T) => void; }
 
-const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
+const EASE = "linear";
 
 export function FilterTabs<T extends string>({ tabs, value, onChange }: Props<T>) {
   const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -24,7 +24,7 @@ export function FilterTabs<T extends string>({ tabs, value, onChange }: Props<T>
     ind.style.opacity = "1";
     if (first.current) {
       void ind.offsetWidth; // flush layout so the next change animates
-      ind.style.transition = `transform 260ms ${EASE}, width 260ms ${EASE}`;
+      ind.style.transition = `transform 200ms ${EASE}, width 200ms ${EASE}`;
       first.current = false;
     }
   };
