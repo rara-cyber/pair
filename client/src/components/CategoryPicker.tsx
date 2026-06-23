@@ -36,13 +36,18 @@ export function CategoryPicker({ value, categories, onChange, onAddCategory, max
       if (!ref.current?.contains(t) && !popRef.current?.contains(t)) setOpen(false);
     };
     const close = () => setOpen(false);
+    const onScroll = (e: Event) => {
+      // ignore scrolling inside the menu's own list; close only on page/table scroll
+      if (popRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
     document.addEventListener("mousedown", onDown);
     window.addEventListener("resize", close);
-    window.addEventListener("scroll", close, true); // capture: also catch the table's scroll container
+    window.addEventListener("scroll", onScroll, true); // capture: also catch the table's scroll container
     return () => {
       document.removeEventListener("mousedown", onDown);
       window.removeEventListener("resize", close);
-      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("scroll", onScroll, true);
     };
   }, [open]);
 
