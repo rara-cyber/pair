@@ -12,7 +12,7 @@ import { extractPdfData } from "../services/pdfExtractor";
 import { getBalances } from "../services/balances";
 import { syncPaypalTransactions } from "../services/paypalTransactions";
 import { assignProjects } from "../services/projects";
-import { saveApiTransactions, loadApiTransactions, getProjects, saveProject, deleteProject, setProjectOverride } from "../services/db";
+import { saveApiTransactions, loadApiTransactions, getProjects, saveProject, deleteProject, setProjectOverride, lastSyncedAt, countApiTransactions } from "../services/db";
 import { readdirSync } from "fs";
 import AdmZip from "adm-zip";
 import type { Transaction, PdfLink } from "../services/csvParser";
@@ -149,6 +149,16 @@ router.get("/balances", async (_req: Request, res: Response) => {
   res.json(await getBalances());
 });
 
+// Sync status, so the UI can show when PayPal was last pulled rather than
+// leaving the user guessing whether the data is current.
+router.get("/sync-paypal", (_req: Request, res: Response) => {
+  res.json({
+    configured: Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET),
+    lastSyncedAt: lastSyncedAt("paypal"),
+    count: countApiTransactions("paypal"),
+  });
+});
+
 // Pull PayPal transactions, persist them, then re-run the normal load so the
 // new rows go through PDF matching and categorization like any other row.
 router.post("/sync-paypal", async (_req: Request, res: Response) => {
@@ -161,7 +171,7 @@ router.post("/sync-paypal", async (_req: Request, res: Response) => {
     saveApiTransactions("paypal", rows);
     refreshCachedFromCsvs(); // reflect immediately; matching follows below
     if (!loading) loading = loadData().finally(() => { loading = null; });
-    res.json({ synced: rows.length });
+    res.json({ synced: rows.length, lastSyncedAt: lastSyncedAt("paypal"), count: countApiTransactions("paypal") });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     console.error("[sync-paypal]", message);

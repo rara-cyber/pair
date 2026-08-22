@@ -3,6 +3,8 @@ import { CurrencyPicker } from "./CurrencyPicker";
 import { ModelPicker } from "./ModelPicker";
 import { Card } from "./ui/Card";
 import { ProjectsSettings } from "./ProjectsSettings";
+import { UnmatchedDocuments } from "./UnmatchedDocuments";
+import { PaypalSync } from "./PaypalSync";
 
 interface Props {
   baseCurrency: string;
@@ -11,6 +13,7 @@ interface Props {
   ratesError: boolean;
   onCurrencyChange: (c: string) => void;
   onProjectsChanged?: () => void;
+  onSynced?: () => void;
 }
 
 function SettingRow({ label, desc, children }: { label: string; desc: string; children: ReactNode }) {
@@ -25,7 +28,7 @@ function SettingRow({ label, desc, children }: { label: string; desc: string; ch
   );
 }
 
-export function Settings({ baseCurrency, currencies, ratesLoading, ratesError, onCurrencyChange, onProjectsChanged }: Props) {
+export function Settings({ baseCurrency, currencies, ratesLoading, ratesError, onCurrencyChange, onProjectsChanged, onSynced }: Props) {
   return (
     <div style={{ maxWidth: "var(--container-max)", margin: "0 auto", padding: "40px 24px 80px" }}>
       <header style={{ marginBottom: "28px" }}>
@@ -41,10 +44,17 @@ export function Settings({ baseCurrency, currencies, ratesLoading, ratesError, o
         <SettingRow label="AI model" desc="Model used for document matching">
           <ModelPicker />
         </SettingRow>
+        <div style={{ height: "1px", background: "var(--border)" }} />
+        <SettingRow label="PayPal transactions" desc="Pulled on demand — nothing runs on a schedule">
+          <PaypalSync onSynced={onSynced} />
+        </SettingRow>
       </Card>
 
       <div style={{ marginTop: "12px" }}>
         <ProjectsSettings onChanged={onProjectsChanged} />
+      </div>
+      <div style={{ marginTop: "12px" }}>
+        <UnmatchedDocuments />
       </div>
     </div>
   );
