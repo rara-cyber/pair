@@ -51,6 +51,11 @@ function convertDate(ddmmyyyy: string): string {
 }
 
 export function parseAllCsvs(): Transaction[] {
+  // Keyed on the fields that make a row distinct, not on the id alone. Statement
+  // periods overlap (a full-year export plus monthly ones), so the same row
+  // genuinely appears in several files and must still collapse to one — but Wise
+  // also reuses a single id for two DIFFERENT rows, and keying on the id alone
+  // silently discarded one of them.
   const transactionMap = new Map<string, Transaction>();
 
   const subdirs = readdirSync(CSV_BASE_DIR, { withFileTypes: true })
@@ -74,7 +79,8 @@ export function parseAllCsvs(): Transaction[] {
       for (const r of records) {
         const id = r["TransferWise ID"] || "";
         if (!id) continue;
-        transactionMap.set(id, {
+        const rowKey = [id, r["Currency"], r["Amount"], r["Date Time"]].join("|");
+        transactionMap.set(rowKey, {
           transferWiseId: id,
           date: convertDate(r["Date"]),
           dateTime: r["Date Time"] || "",
@@ -104,6 +110,40 @@ export function parseAllCsvs(): Transaction[] {
   }
 
   const allTransactions = Array.from(transactionMap.values());
+  disambiguateIds(allTransactions);
   allTransactions.sort((a, b) => b.date.localeCompare(a.date));
   return allTransactions;
+}
+
+/**
+ * Wise reuses one TransferWise ID for two distinct rows in two situations:
+ * a currency conversion (debit leg in the source currency file, credit leg in
+ * the target's), and a card authorisation with its reversal (both in the same
+ * file, equal and opposite). Everything downstream — the docMap invariant and
+ * all four DB tables — keys on this id, so the extras need their own.
+ *
+ * The first row of a colliding group keeps the bare id, so existing matches,
+ * categories, enrichments and project pins continue to resolve. Ordering is by
+ * row content rather than file read order, so a given row keeps the same id
+ * across runs regardless of how the directory happens to be listed.
+ */
+function disambiguateIds(transactions: Transaction[]): void {
+  const byId = new Map<string, Transaction[]>();
+  for (const tx of transactions) {
+    const group = byId.get(tx.transferWiseId);
+    if (group) group.push(tx);
+    else byId.set(tx.transferWiseId, [tx]);
+  }
+
+  for (const [id, group] of byId) {
+    if (group.length < 2) continue;
+    group.sort(
+      (a, b) =>
+        a.currency.localeCompare(b.currency) ||
+        a.amount - b.amount ||
+        a.dateTime.localeCompare(b.dateTime),
+    );
+    // "~" is unreserved in URLs, so ids stay safe in the /api/transaction/:id routes.
+    group.forEach((tx, i) => { if (i > 0) tx.transferWiseId = `${id}~${i + 1}`; });
+  }
 }
