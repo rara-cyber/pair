@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { CurrencyPicker } from "./CurrencyPicker";
 import { ModelPicker } from "./ModelPicker";
 import { Card } from "./ui/Card";
+import { ProjectsSettings } from "./ProjectsSettings";
 
 interface Props {
   baseCurrency: string;
@@ -9,6 +10,7 @@ interface Props {
   ratesLoading: boolean;
   ratesError: boolean;
   onCurrencyChange: (c: string) => void;
+  onProjectsChanged?: () => void;
 }
 
 function SettingRow({ label, desc, children }: { label: string; desc: string; children: ReactNode }) {
@@ -23,7 +25,7 @@ function SettingRow({ label, desc, children }: { label: string; desc: string; ch
   );
 }
 
-export function Settings({ baseCurrency, currencies, ratesLoading, ratesError, onCurrencyChange }: Props) {
+export function Settings({ baseCurrency, currencies, ratesLoading, ratesError, onCurrencyChange, onProjectsChanged }: Props) {
   return (
     <div style={{ maxWidth: "var(--container-max)", margin: "0 auto", padding: "40px 24px 80px" }}>
       <header style={{ marginBottom: "28px" }}>
@@ -40,6 +42,10 @@ export function Settings({ baseCurrency, currencies, ratesLoading, ratesError, o
           <ModelPicker />
         </SettingRow>
       </Card>
+
+      <div style={{ marginTop: "12px" }}>
+        <ProjectsSettings onChanged={onProjectsChanged} />
+      </div>
     </div>
   );
 }

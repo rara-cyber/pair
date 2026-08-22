@@ -40,6 +40,24 @@ function createTables() {
       sortOrder INTEGER
     );
 
+    -- Business lines. The patterns column is a JSON array of case-insensitive substrings
+    -- matched against a transaction's merchant/payer/payee/reference/description.
+    -- Assignments are derived at load time, never stored per transaction, so
+    -- editing a rule cannot leave stale assignments behind.
+    CREATE TABLE IF NOT EXISTS projects (
+      name      TEXT PRIMARY KEY,
+      sortOrder INTEGER NOT NULL DEFAULT 0,
+      patterns  TEXT NOT NULL
+    );
+
+    -- Per-transaction project overrides. Rules cover the recurring counterparties;
+    -- this pins the exceptions. An empty string means "deliberately unassigned",
+    -- which is distinct from having no row at all (fall through to the rules).
+    CREATE TABLE IF NOT EXISTS project_overrides (
+      transferWiseId TEXT PRIMARY KEY,
+      project        TEXT NOT NULL
+    );
+
     -- Transactions pulled from an API rather than a CSV. CSV rows are re-derived
     -- from disk on every load, but API rows have no local file to re-read, so
     -- they must persist. Stored as whole JSON: the shape is Transaction, and a
@@ -225,6 +243,78 @@ export function addCategory(name: string): void {
   stmtAddCategory.run(name);
 }
 
+// ── Projects ──────────────────────────────────────────────────────────────────
+
+export interface ProjectRow { name: string; sortOrder: number; patterns: string[] }
+
+const stmtAllProjects = db.prepare<[], { name: string; sortOrder: number; patterns: string }>(
+  "SELECT * FROM projects ORDER BY sortOrder, name"
+);
+const stmtUpsertProject = db.prepare(`
+  INSERT INTO projects (name, sortOrder, patterns) VALUES (@name, @sortOrder, @patterns)
+  ON CONFLICT(name) DO UPDATE SET sortOrder = excluded.sortOrder, patterns = excluded.patterns
+`);
+const stmtDeleteProject = db.prepare("DELETE FROM projects WHERE name = ?");
+
+export function getProjects(): ProjectRow[] {
+  return stmtAllProjects.all().map((r) => {
+    let patterns: string[] = [];
+    try { const p = JSON.parse(r.patterns); if (Array.isArray(p)) patterns = p.map(String); } catch { /* corrupt row → no patterns */ }
+    return { name: r.name, sortOrder: r.sortOrder, patterns };
+  });
+}
+
+export function saveProject(name: string, patterns: string[], sortOrder: number): void {
+  stmtUpsertProject.run({ name, sortOrder, patterns: JSON.stringify(patterns) });
+}
+
+export function deleteProject(name: string): void {
+  stmtDeleteProject.run(name);
+}
+
+// Seeded from the real recurring payers/payees in this account. Only applied
+// when the table is empty, so user edits are never overwritten.
+const SEED_PROJECTS: { name: string; patterns: string[] }[] = [
+  // Actor revenue plus the upstream APIs those actors wrap.
+  { name: "Apify", patterns: ["apify", "openrouter", "justoneapi", "open web ninja", "openwebninja", "lemonfox", "anthropic", "claude.ai", "z.ai", "replicate", "scrapfly", "realtyapi", "deepinfra", "grok", "xai", "openai", "spider"] },
+  { name: "Amazon KDP/MBA", patterns: ["amazon", "amz*marketin", "kdp"] },
+  // NOKIA.COM is RapidAPI's payment descriptor, confirmed against the statements.
+  { name: "RapidAPI", patterns: ["rapidapi", "nokia"] },
+  // Print-on-demand, a separate line from KDP.
+  { name: "Merch", patterns: ["sprd.net", "spreadshirt", "lazymerch"] },
+  { name: "Speakeasy", patterns: ["tryspeakeasy", "speakeasy"] },
+  // Company admin, shared infrastructure, and Wise card cashback. Deliberately
+  // no "stripe" pattern: Stripe appears as income and would misfile revenue.
+  { name: "Overhead", patterns: ["comistar", "hostinger", "cashback", "vercel", "cloudflare", "neon", "convex", "deepl"] },
+];
+
+function seedProjects() {
+  const count = (db.prepare("SELECT COUNT(*) AS c FROM projects").get() as { c: number }).c;
+  if (count > 0) return;
+  SEED_PROJECTS.forEach((p, i) => saveProject(p.name, p.patterns, i));
+  console.log("[db] seeded projects");
+}
+
+// Called here, not beside seedCategoryList(): the prepared statements above are
+// module-level `const`s, so an earlier call hits the temporal dead zone.
+seedProjects();
+
+const stmtSetOverride = db.prepare(
+  "INSERT INTO project_overrides (transferWiseId, project) VALUES (?, ?) ON CONFLICT(transferWiseId) DO UPDATE SET project = excluded.project"
+);
+const stmtClearOverride = db.prepare("DELETE FROM project_overrides WHERE transferWiseId = ?");
+const stmtAllOverrides = db.prepare<[], { transferWiseId: string; project: string }>("SELECT * FROM project_overrides");
+
+/** Pass an empty string to pin a row as unassigned; pass null to fall back to the rules. */
+export function setProjectOverride(transferWiseId: string, project: string | null): void {
+  if (project === null) stmtClearOverride.run(transferWiseId);
+  else stmtSetOverride.run(transferWiseId, project);
+}
+
+export function loadProjectOverrides(): Map<string, string> {
+  return new Map(stmtAllOverrides.all().map((r) => [r.transferWiseId, r.project]));
+}
+
 // ── API transactions ──────────────────────────────────────────────────────────
 
 const stmtUpsertApiTx = db.prepare(`
@@ -259,8 +349,9 @@ export function clearApiTransactions(source: string): void {
 // ── Clear All ─────────────────────────────────────────────────────────────────
 
 export function clearAll(): void {
-  db.exec("DROP TABLE IF EXISTS matches; DROP TABLE IF EXISTS enrichments; DROP TABLE IF EXISTS categories; DROP TABLE IF EXISTS category_list; DROP TABLE IF EXISTS api_transactions;");
+  db.exec("DROP TABLE IF EXISTS matches; DROP TABLE IF EXISTS enrichments; DROP TABLE IF EXISTS categories; DROP TABLE IF EXISTS category_list; DROP TABLE IF EXISTS api_transactions; DROP TABLE IF EXISTS projects; DROP TABLE IF EXISTS project_overrides;");
   createTables();
   seedCategoryList();
+  seedProjects();
   console.log("[db] cleared all tables");
 }

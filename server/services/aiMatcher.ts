@@ -46,6 +46,10 @@ export async function callLlm(prompt: string, maxTokens = 64): Promise<string> {
     body: JSON.stringify({
       model: getModel(),
       max_tokens: maxTokens,
+      // Matching and categorisation are classification, not composition. Without
+      // this the provider default (1.0) makes identical prompts disagree: an
+      // exact amount+date match returned "none" on roughly one run in three.
+      temperature: 0,
       messages: [{ role: "user", content: prompt }],
     }),
   });
@@ -105,10 +109,14 @@ ${candidates.map(formatTx).join("\n")}
 Which transaction ID matches? Reply with ONLY the TransferWise ID or "none".`;
 
   const text = await callLlm(prompt);
-  if (text === "none") return null;
+  if (/^\s*none\b/i.test(text)) return null;
 
-  const validIds = new Set(candidates.map((t) => t.transferWiseId));
-  return validIds.has(text) ? text : null;
+  // Extract rather than compare: the reply is frequently "ID: CARD-123" or
+  // wrapped in backticks/prose, and exact equality silently discarded a correct
+  // answer. Only ids from the candidate set can be returned, so this cannot
+  // invent a match.
+  const validIds = candidates.map((t) => t.transferWiseId);
+  return validIds.find((id) => text.includes(id)) ?? null;
 }
 
 type Enrichment = { payerName: string; payeeName: string; paymentReference: string; merchant: string };

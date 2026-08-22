@@ -11,3 +11,4 @@ data/
 # Claude config - may contain API keys
 .claude/
 CLAUDE.md
+.playwright-mcp/

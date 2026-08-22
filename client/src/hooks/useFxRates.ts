@@ -16,7 +16,10 @@ export function useFxRates() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch("https://api.frankfurter.app/latest?from=EUR", { signal: controller.signal })
+    // Must be the .dev host: api.frankfurter.app 301s here, and the browser's
+    // CORS check does not survive that cross-domain redirect — the fetch throws
+    // and every amount silently falls back to its raw, unconverted value.
+    fetch("https://api.frankfurter.dev/v1/latest?from=EUR", { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
         setRates({ EUR: 1, ...data.rates });

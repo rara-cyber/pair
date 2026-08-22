@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import type { Transaction, PdfLink as PdfLinkType, SortConfig } from "../types";
 import { PdfLink } from "./PdfLink";
 import { CategoryPicker } from "./CategoryPicker";
+import { ProjectPicker } from "./ProjectPicker";
 import { CURRENCY_SYMBOLS } from "../hooks/useFxRates";
 import { Badge } from "./ui/Badge";
 
@@ -20,6 +21,9 @@ interface Props {
   categories: string[];
   onCategoryChange: (transferWiseId: string, categories: string[]) => void;
   onAddCategory: (name: string) => void;
+  projects: string[];
+  onProjectChange: (transferWiseId: string, project: string | null) => void;
+  onAddProject: (name: string) => void;
 }
 
 
@@ -30,6 +34,7 @@ const COLUMNS: { key: keyof Transaction; label: string; align?: string; defaultW
   { key: "description",       label: "Description",  defaultWidth: 160 },
   { key: "paymentReference",  label: "Payment Ref",  defaultWidth: 112 },
   { key: "payerName",         label: "Payer Name",   defaultWidth: 112 },
+  { key: "project",           label: "Project",      defaultWidth: 132 },
 ];
 
 const DOCS_DEFAULT_WIDTH = 128;
@@ -59,6 +64,9 @@ export function TransactionTable({
   categories,
   onCategoryChange,
   onAddCategory,
+  projects,
+  onProjectChange,
+  onAddProject,
 }: Props) {
   const [colWidths, setColWidths] = useState<Record<string, number>>(() =>
     Object.fromEntries(COLUMNS.map((c) => [c.key, c.defaultWidth]))
@@ -394,6 +402,19 @@ export function TransactionTable({
                   } else {
                     display = String(value ?? "");
                   }
+                  // The Project cell is editable: a manual pick overrides the
+                  // rule for this row only.
+                  if (col.key === "project") {
+                    display = (
+                      <ProjectPicker
+                        value={tx.project}
+                        projects={projects}
+                        onChange={(p) => onProjectChange(tx.transferWiseId, p)}
+                        onAddProject={onAddProject}
+                        maxWidth={colWidths["project"] - 28}
+                      />
+                    );
+                  }
                   const isId = col.key === "transferWiseId";
                   const isNumeric = col.key === "amount";
                   return (
@@ -420,7 +441,7 @@ export function TransactionTable({
                           onFilter("_month", month);
                         } else if (col.key === "amount") {
                           onFilter("currency", tx.currency);
-                        } else {
+                        } else if (col.key !== "project") {
                           onFilter(col.key, String(value ?? ""));
                         }
                       }}

@@ -1,6 +1,11 @@
 export interface DateRange { from: string | null; to: string | null; }
 
-const fmt = (d: Date) => d.toISOString().slice(0, 10);
+// Format from LOCAL date parts. `toISOString()` converts local midnight to UTC,
+// which rolls the date back a day in any timezone ahead of UTC — in
+// Asia/Shanghai that made "this month" resolve to Jul 31 – Aug 30, pulling a
+// neighbouring month's transactions into every preset.
+const fmt = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 export function buildPresets(): { key: string; label: string; getRange: () => DateRange }[] {
   const today = new Date();
@@ -28,18 +33,21 @@ export function rangeForKey(key: string): DateRange {
   return p ? p.getRange() : { from: null, to: null };
 }
 
-// Curated, short-labeled set for the on-chart toggle (no "last 6").
+// Curated, short-labeled set for the on-chart toggle and the timeframe button.
+// Must cover every key in RANGE_CYCLE or the toggle renders "Custom".
 export const RANGE_TOGGLE: { key: string; label: string }[] = [
   { key: "all", label: "All" },
   { key: "this-month", label: "This month" },
   { key: "last-month", label: "Last month" },
   { key: "last-3", label: "3M" },
+  { key: "last-6", label: "6M" },
   { key: "this-year", label: "This year" },
   { key: "last-year", label: "Last year" },
 ];
 
-// Order the chart click cycles through.
-export const RANGE_CYCLE = ["all", "this-month", "last-month", "last-3", "this-year", "last-year"];
+// Order the chart click and the timeframe toggle cycle through.
+// Starts at "this-year" because that is the app's default range.
+export const RANGE_CYCLE = ["this-year", "last-month", "last-3", "last-6", "last-year", "this-month", "all"];
 
 export function nextRangeKey(current: string): string {
   const i = RANGE_CYCLE.indexOf(current);

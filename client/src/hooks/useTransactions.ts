@@ -1,3 +1,4 @@
+import { rangeForKey } from "../lib/dateRanges";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import type { Transaction, ApiResponse, SortConfig, Filter, CategoryEvent } from "../types";
 
@@ -10,7 +11,9 @@ export function useTransactions() {
   const [sort, setSort] = useState<SortConfig | null>(null);
   const [filters, setFilters] = useState<Filter[]>([]);
   const [documentFilter, setDocumentFilter] = useState<LinkFilter>("all");
-  const [dateRange, setDateRangeState] = useState<{ from: string | null; to: string | null }>({ from: null, to: null });
+  // Default to the current year rather than all-time: the dashboard is a
+  // bookkeeping view, and "this year" is the period that actually gets filed.
+  const [dateRange, setDateRangeState] = useState<{ from: string | null; to: string | null }>(() => rangeForKey("this-year"));
 
   useEffect(() => {
     fetch("/api/transactions")

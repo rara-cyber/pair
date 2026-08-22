@@ -6,11 +6,13 @@ interface Props {
   onRemove: (index: number) => void;
   onClear: () => void;
   leftContent?: ReactNode;
+  /** Rendered flush to the right edge, after any filter chips. */
+  rightContent?: ReactNode;
 }
 
-export function FilterBar({ filters, onRemove, onClear, leftContent }: Props) {
+export function FilterBar({ filters, onRemove, onClear, leftContent, rightContent }: Props) {
   const hasFilters = filters.length > 0;
-  if (!leftContent && !hasFilters) return null;
+  if (!leftContent && !rightContent && !hasFilters) return null;
 
   const isMonthFilter = (filter: Filter) => filter.key === "_month";
 
@@ -132,6 +134,7 @@ export function FilterBar({ filters, onRemove, onClear, leftContent }: Props) {
             </button>
           </>
         )}
+        {rightContent && <div style={{ marginLeft: "auto" }}>{rightContent}</div>}
       </div>
     </div>
   );
