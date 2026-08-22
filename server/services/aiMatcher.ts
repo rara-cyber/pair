@@ -9,18 +9,28 @@ import {
 } from "./db";
 import { initProgress, updateProgress, finishProgress, emitMatch } from "./progress";
 
+// Only models reachable from this machine's region. OpenRouter geo-blocks
+// closed models whose sole upstream is a US provider that does not serve
+// mainland China — Gemini, GPT-4o Mini and Claude 3 Haiku all return
+// `403 This model is not available in your region` from here. Open-weight
+// models routed via StreamLake / Alibaba / DeepInfra work fine.
+//
+// Benchmarked on the real categorizer prompt against 30 already-labelled rows:
+//   deepseek-chat    73% agreement, 30/30 covered, 0 invalid, 335 out-tok, $0.04/1000tx
+//   qwen3-235b-a22b  73% agreement, 30/30 covered, 0 invalid, 2041 out-tok, $0.29/1000tx
+// Qwen3 is a reasoning model and burns ~6x the output tokens for the same
+// answer, so DeepSeek is the default on cost and latency, not on accuracy.
 const MODELS = [
-  { id: "google/gemini-2.5-flash",          label: "Gemini 2.5 Flash (default)" },
-  { id: "google/gemini-2.0-flash-lite",      label: "Gemini 2.0 Flash Lite" },
-  { id: "openai/gpt-4o-mini",               label: "GPT-4o Mini" },
-  { id: "anthropic/claude-3-haiku",         label: "Claude 3 Haiku" },
+  { id: "deepseek/deepseek-chat",            label: "DeepSeek Chat (default)" },
+  { id: "qwen/qwen3-235b-a22b",              label: "Qwen3 235B" },
+  { id: "qwen/qwen-2.5-72b-instruct",        label: "Qwen 2.5 72B" },
   { id: "meta-llama/llama-3.3-70b-instruct", label: "Llama 3.3 70B" },
 ] as const;
 
 export type ModelId = typeof MODELS[number]["id"];
 export const AVAILABLE_MODELS = MODELS;
 
-let currentModel: ModelId = "google/gemini-2.5-flash";
+let currentModel: ModelId = "deepseek/deepseek-chat";
 export function getModel(): ModelId { return currentModel; }
 export function setModel(id: ModelId): void { currentModel = id; }
 

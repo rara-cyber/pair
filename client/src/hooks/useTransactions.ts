@@ -130,7 +130,7 @@ export function useTransactions() {
       );
       return { ...prev, transactions };
     });
-    await fetch("/api/transaction/" + transferWiseId + "/category", {
+    await fetch("/api/transaction/" + encodeURIComponent(transferWiseId) + "/category", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ categories }),
