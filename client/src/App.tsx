@@ -15,6 +15,7 @@ import { Select } from "./components/ui/Select";
 import { Dashboard } from "./components/Dashboard";
 import { FilterTabs } from "./components/ui/FilterTabs";
 import { Settings } from "./components/Settings";
+import { statsFor } from "./lib/derive";
 import type { Transaction } from "./types";
 
 
@@ -111,7 +112,19 @@ function App() {
     refetch,
   } = useTransactions();
 
-  const setTransactionProject = useCallback(async (transferWiseId: string, project: string) => {
+  const addProject = useCallback(async (name: string) => {
+    // Created with no patterns — it exists purely to be assigned by hand until
+    // patterns are added in Settings.
+    const res = await fetch("/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, patterns: [] }),
+    });
+    const d: { projects: { name: string }[] } = await res.json();
+    setProjects(d.projects.map((p) => p.name));
+  }, []);
+
+  const setTransactionProject = useCallback(async (transferWiseId: string, project: string | null) => {
     await fetch(`/api/transaction/${encodeURIComponent(transferWiseId)}/project`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -150,8 +163,12 @@ function App() {
 
   const progress = useProgress(handleMatch, applyCategory);
 
-  const linked = stats ? stats.withInvoice + stats.withRemittance : 0;
-  const missing = stats ? stats.total - linked : 0;
+  // Header counts must describe what is on screen, not the whole dataset —
+  // otherwise "473 TX" sits beside an income figure covering only the selected
+  // period. Derived from the filtered rows, same as income/expenses/net.
+  const viewStats = useMemo(() => statsFor(transactions), [transactions]);
+  const linked = viewStats.withInvoice + viewStats.withRemittance;
+  const missing = viewStats.total - linked;
 
   const toBase = (t: Transaction) => convertAmount(t.amount, t.currency, baseCurrency, rates);
   const income = transactions.filter((t) => t.amount >= 0).reduce((s, t) => s + toBase(t), 0);
@@ -281,7 +298,7 @@ function App() {
             {stats && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{stats.total}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{viewStats.total}</span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px' }}>Tx</span>
                 </div>
                 <span style={{ width: '1px', height: '28px', background: 'var(--border)' }}></span>
@@ -384,7 +401,7 @@ function App() {
         {!loading && view === "overview" && (
           <Dashboard
             transactions={transactions}
-            stats={stats}
+            stats={viewStats}
             baseCurrency={baseCurrency}
             rates={rates}
             dateRange={dateRange}
@@ -408,6 +425,7 @@ function App() {
             onAddCategory={addCategory}
             projects={projects}
             onProjectChange={setTransactionProject}
+            onAddProject={addProject}
           />
         )}
         {!loading && view === "settings" && (

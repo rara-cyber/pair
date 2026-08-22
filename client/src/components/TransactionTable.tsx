@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import type { Transaction, PdfLink as PdfLinkType, SortConfig } from "../types";
 import { PdfLink } from "./PdfLink";
 import { CategoryPicker } from "./CategoryPicker";
+import { ProjectPicker } from "./ProjectPicker";
 import { CURRENCY_SYMBOLS } from "../hooks/useFxRates";
 import { Badge } from "./ui/Badge";
 
@@ -21,7 +22,8 @@ interface Props {
   onCategoryChange: (transferWiseId: string, categories: string[]) => void;
   onAddCategory: (name: string) => void;
   projects: string[];
-  onProjectChange: (transferWiseId: string, project: string) => void;
+  onProjectChange: (transferWiseId: string, project: string | null) => void;
+  onAddProject: (name: string) => void;
 }
 
 
@@ -32,7 +34,7 @@ const COLUMNS: { key: keyof Transaction; label: string; align?: string; defaultW
   { key: "description",       label: "Description",  defaultWidth: 160 },
   { key: "paymentReference",  label: "Payment Ref",  defaultWidth: 112 },
   { key: "payerName",         label: "Payer Name",   defaultWidth: 112 },
-  { key: "project",           label: "Project",      defaultWidth: 120 },
+  { key: "project",           label: "Project",      defaultWidth: 132 },
 ];
 
 const DOCS_DEFAULT_WIDTH = 128;
@@ -64,6 +66,7 @@ export function TransactionTable({
   onAddCategory,
   projects,
   onProjectChange,
+  onAddProject,
 }: Props) {
   const [colWidths, setColWidths] = useState<Record<string, number>>(() =>
     Object.fromEntries(COLUMNS.map((c) => [c.key, c.defaultWidth]))
@@ -403,20 +406,13 @@ export function TransactionTable({
                   // rule for this row only.
                   if (col.key === "project") {
                     display = (
-                      <select
-                        value={tx.project ?? ""}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => { e.stopPropagation(); onProjectChange(tx.transferWiseId, e.target.value); }}
-                        style={{
-                          width: "100%", background: "transparent", border: "none",
-                          color: tx.project ? "var(--foreground)" : "var(--muted-foreground)",
-                          font: "inherit", cursor: "pointer", outline: "none", padding: 0,
-                        }}
-                        title="Pick a project for this transaction (overrides the rule)"
-                      >
-                        <option value="">—</option>
-                        {projects.map((p) => <option key={p} value={p}>{p}</option>)}
-                      </select>
+                      <ProjectPicker
+                        value={tx.project}
+                        projects={projects}
+                        onChange={(p) => onProjectChange(tx.transferWiseId, p)}
+                        onAddProject={onAddProject}
+                        maxWidth={colWidths["project"] - 28}
+                      />
                     );
                   }
                   const isId = col.key === "transferWiseId";

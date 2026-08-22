@@ -217,3 +217,20 @@ export function projectTotals(txns: Transaction[], base: string, rates: FxRates 
     a.name === "Unassigned" ? 1 : b.name === "Unassigned" ? -1 : b.net - a.net,
   );
 }
+
+/**
+ * Document-coverage counts for the transactions currently in view.
+ *
+ * The server's `stats` describe the whole dataset, so using them alongside
+ * period-filtered figures makes the header disagree with itself — "473 TX"
+ * next to a €4.6k income that only covers last year.
+ */
+export function statsFor(txns: Transaction[]): { total: number; withInvoice: number; withRemittance: number } {
+  let withInvoice = 0;
+  let withRemittance = 0;
+  for (const t of txns) {
+    if (t.invoiceLinks && t.invoiceLinks.length > 0) withInvoice++;
+    if (t.remittanceLinks && t.remittanceLinks.length > 0) withRemittance++;
+  }
+  return { total: txns.length, withInvoice, withRemittance };
+}

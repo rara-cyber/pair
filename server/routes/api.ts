@@ -454,8 +454,14 @@ router.post("/transaction/:transferWiseId/project", (req: Request, res: Response
 
   // Patch the cache in place so the change shows without a full reload.
   const tx = cachedData?.transactions.find((t) => t.transferWiseId === id);
-  if (tx) tx.project = value ? value : undefined;
-  res.json({ transferWiseId: id, project: value });
+  if (tx) {
+    tx.project = undefined;
+    // Clearing the pin must hand the row back to the rules, not blank it —
+    // otherwise "use rule" looks like it unassigned the transaction.
+    if (value === null) assignProjects([tx]);
+    else if (value) tx.project = value;
+  }
+  res.json({ transferWiseId: id, project: tx?.project ?? value });
 });
 
 router.get("/categories", (_req: Request, res: Response) => {

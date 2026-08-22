@@ -36,15 +36,18 @@ export function MonthRangeSlider({ dateRange, onChange, months = 12 }: Props) {
 
   // Map the current range back onto stop indices. An unset range means "all",
   // which we show as the full span rather than an empty selection.
+  // Overlap, not containment: a preset like "3M" starts mid-month, and testing
+  // whether a whole month fits inside the range would leave both end months dim
+  // even though their transactions are included.
   const startIdx = useMemo(() => {
     if (!dateRange.from) return 0;
-    const i = stops.findIndex((s) => s.from >= dateRange.from!);
+    const i = stops.findIndex((s) => s.to >= dateRange.from!);
     return i === -1 ? last : i;
   }, [dateRange.from, stops, last]);
 
   const endIdx = useMemo(() => {
     if (!dateRange.to) return last;
-    for (let i = last; i >= 0; i--) if (stops[i].to <= dateRange.to!) return i;
+    for (let i = last; i >= 0; i--) if (stops[i].from <= dateRange.to!) return i;
     return 0;
   }, [dateRange.to, stops, last]);
 
@@ -64,16 +67,16 @@ export function MonthRangeSlider({ dateRange, onChange, months = 12 }: Props) {
     margin: 0, pointerEvents: "none", outline: "none",
   };
 
-  // The slider only spans 12 months, but the range can be set from elsewhere
-  // (the timeframe toggle, the chart) to something outside that window — "last
-  // year" reaches back further than the leftmost stop. Naming a month span the
-  // handles can represent would then misstate the filter actually in effect, so
-  // defer to the preset's own name whenever the range matches one.
   const linkStyle: React.CSSProperties = {
     fontSize: "0.6875rem", color: "var(--muted-foreground)", background: "none",
     border: "none", cursor: "pointer", padding: 0, fontFamily: "var(--font-sans)",
   };
 
+  // The slider only spans 12 months, but the range can be set from elsewhere
+  // (the timeframe toggle, the chart) to something outside that window — "last
+  // year" reaches back further than the leftmost stop. Naming a month span the
+  // handles can represent would then misstate the filter actually in effect, so
+  // defer to the preset's own name whenever the range matches one.
   const preset = activePresetKey(dateRange);
   const isAll = preset === "all";
   const next = nextRangeKey(preset);
@@ -97,23 +100,24 @@ export function MonthRangeSlider({ dateRange, onChange, months = 12 }: Props) {
       `}</style>
 
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "0.5rem" }}>
-        <span style={{ fontSize: "0.8125rem", fontFamily: "var(--font-mono)", color: "var(--foreground)", fontVariantNumeric: "tabular-nums" }}>
+        {/* The label is the control: clicking it cycles the timeframe, which
+            saves a button and keeps the row to two affordances. */}
+        <button
+          onClick={() => { const r = rangeForKey(next); onChange(r.from, r.to); }}
+          title={`Showing ${label} · click for ${labelForKey(next)}`}
+          style={{
+            fontSize: "0.8125rem", fontFamily: "var(--font-mono)", color: "var(--foreground)",
+            fontVariantNumeric: "tabular-nums", background: "none", border: "none",
+            padding: 0, cursor: "pointer", textAlign: "left",
+          }}
+        >
           {label}
-        </span>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
-          <button
-            onClick={() => { const r = rangeForKey(next); onChange(r.from, r.to); }}
-            style={linkStyle}
-            title={`Switch to ${labelForKey(next)}`}
-          >
-            {labelForKey(next)} →
+        </button>
+        {!isAll && (
+          <button onClick={() => onChange(null, null)} style={linkStyle} title="Show all dates">
+            reset
           </button>
-          {!isAll && (
-            <button onClick={() => onChange(null, null)} style={linkStyle} title="Show all dates">
-              reset
-            </button>
-          )}
-        </span>
+        )}
       </div>
 
       <div style={{ position: "relative", height: "20px" }}>
@@ -135,9 +139,26 @@ export function MonthRangeSlider({ dateRange, onChange, months = 12 }: Props) {
         />
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.5625rem", color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>
+      {/* Labels are positioned at the thumb coordinates, not spread with
+          space-between: the track is inset 7px at each end (half a thumb), so
+          an evenly-spread row drifts up to ~4px out at the edges and the letters
+          stop lining up with the months they mark. */}
+      <div style={{ position: "relative", height: "0.75rem" }}>
         {stops.map((s, i) => (
-          <span key={`${s.y}-${s.m}`} style={{ opacity: i >= startIdx && i <= endIdx ? 1 : 0.4 }}>{s.label[0]}</span>
+          <span
+            key={`${s.y}-${s.m}`}
+            style={{
+              position: "absolute",
+              left: `calc(7px + (100% - 14px) * ${last === 0 ? 0 : i / last})`,
+              transform: "translateX(-50%)",
+              fontSize: "0.5625rem",
+              fontFamily: "var(--font-mono)",
+              color: "var(--muted-foreground)",
+              opacity: i >= startIdx && i <= endIdx ? 1 : 0.4,
+            }}
+          >
+            {s.label[0]}
+          </span>
         ))}
       </div>
     </div>
