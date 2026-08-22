@@ -9,6 +9,9 @@ import { deleteMatch, loadAllMatches, saveMatch, loadAllCategories, getCategoryL
 import { categorizeTransactions } from "../services/categorizer";
 import { progressEmitter, currentProgress, emitMatch } from "../services/progress";
 import { extractPdfData } from "../services/pdfExtractor";
+import { getBalances } from "../services/balances";
+import { syncPaypalTransactions } from "../services/paypalTransactions";
+import { saveApiTransactions, loadApiTransactions } from "../services/db";
 import { readdirSync } from "fs";
 import AdmZip from "adm-zip";
 import type { Transaction, PdfLink } from "../services/csvParser";
@@ -28,8 +31,27 @@ let cachedData: {
 let loading: Promise<void> | null = null;
 let pendingCategorizeForce = false;
 
+// True once a full loadData() has finished at least once. Needed because
+// loadData sets `cachedData` to a placeholder *synchronously*, before its first
+// await — so `if (!cachedData)` is already false by the time a caller checks it,
+// and the very first request would ship the empty placeholder.
+let hasLoaded = false;
+
+/**
+ * All transactions, from every source: Wise CSVs on disk plus anything pulled
+ * from an API and persisted. CSV rows win on an id collision — they are the
+ * authoritative bookkeeping record. Ids are namespaced (TRANSFER-/CARD- vs
+ * PAYPAL-) so in practice collisions cannot happen.
+ */
+function loadAllTransactions(): Transaction[] {
+  const csv = parseAllCsvs();
+  const seen = new Set(csv.map((t) => t.transferWiseId));
+  const api = loadApiTransactions<Transaction>().filter((t) => !seen.has(t.transferWiseId));
+  return [...csv, ...api].sort((a, b) => b.date.localeCompare(a.date));
+}
+
 function refreshCachedFromCsvs() {
-  const parsed = parseAllCsvs();
+  const parsed = loadAllTransactions();
   const prev = new Map((cachedData?.transactions ?? []).map((t) => [t.transferWiseId, t]));
   const transactions: Transaction[] = parsed.map((tx) => {
     const old = prev.get(tx.transferWiseId);
@@ -48,7 +70,7 @@ function refreshCachedFromCsvs() {
 }
 
 async function loadData(forceRematch = false, categorizeForce = false) {
-  const transactions = parseAllCsvs();
+  const transactions = loadAllTransactions();
 
   // On first load, set empty state immediately so the table can render while matching runs.
   // On subsequent loads, keep existing cached data to avoid wiping visible links.
@@ -84,6 +106,7 @@ async function loadData(forceRematch = false, categorizeForce = false) {
       withRemittance: matched.filter((t) => t.remittanceLinks && t.remittanceLinks.length > 0).length,
     },
   };
+  hasLoaded = true;
 }
 
 router.get("/progress", (req: Request, res: Response) => {
@@ -119,6 +142,32 @@ router.post("/model", (req: Request, res: Response) => {
   res.json({ current: getModel() });
 });
 
+// Deliberately not wired into loadData() — that kicks off a full CSV reparse +
+// PDF index + AI matching, and balances must not be coupled to it.
+router.get("/balances", async (_req: Request, res: Response) => {
+  res.json(await getBalances());
+});
+
+// Pull PayPal transactions, persist them, then re-run the normal load so the
+// new rows go through PDF matching and categorization like any other row.
+router.post("/sync-paypal", async (_req: Request, res: Response) => {
+  if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_CLIENT_SECRET) {
+    res.status(400).json({ error: "PayPal credentials not configured" });
+    return;
+  }
+  try {
+    const rows = await syncPaypalTransactions();
+    saveApiTransactions("paypal", rows);
+    refreshCachedFromCsvs(); // reflect immediately; matching follows below
+    if (!loading) loading = loadData().finally(() => { loading = null; });
+    res.json({ synced: rows.length });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error("[sync-paypal]", message);
+    res.status(502).json({ error: message });
+  }
+});
+
 router.get("/transactions", async (req: Request, res: Response) => {
   const rematch = req.query.rematch === "true";
   // Always check for new dump files unless a load is already in progress
@@ -126,7 +175,11 @@ router.get("/transactions", async (req: Request, res: Response) => {
     const force = pendingCategorizeForce; pendingCategorizeForce = false;
     loading = loadData(rematch, force).finally(() => { loading = null; });
   }
-  if (!cachedData) await loading;
+  // Wait for the first real load, but never fail the request because of it —
+  // a partial result beats a 500, and the client patches the rest in over SSE.
+  if (!hasLoaded) {
+    try { await loading; } catch { /* serve whatever cachedData holds */ }
+  }
   res.json(cachedData);
 });
 

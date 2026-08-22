@@ -26,6 +26,8 @@ export interface Transaction {
   exchangeToAmount: string;
   transactionType: string;
   transactionDetailsType: string;
+  /** Which system the row came from. Absent means Wise CSV (the original source). */
+  source?: "wise" | "paypal";
   invoiceLinks?: PdfLink[];
   remittanceLinks?: PdfLink[];
   categories?: string[];

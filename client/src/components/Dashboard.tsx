@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import type { Transaction } from "../types";
-import { type FxRates } from "../hooks/useFxRates";
+import { type FxRates, convertAmount } from "../hooks/useFxRates";
+import { useBalances } from "../hooks/useBalances";
 import { Card } from "./ui/Card";
 import { KpiTile } from "./ui/KpiTile";
 import { MilestoneLadder } from "./ui/MilestoneLadder";
 import { KpiTrendDialog } from "./ui/KpiTrendDialog";
-import { kpisFor, coverageLadder, monthlySeries } from "../lib/derive";
+import { kpisFor, coverageLadder, monthlySeries, fmtAbbrev, sym } from "../lib/derive";
 import { CategoryStackChart } from "./CategoryStackChart";
 import { CategoryDonut } from "./CategoryDonut";
 import { TopMerchantsChart } from "./TopMerchantsChart";
@@ -24,6 +25,23 @@ export function Dashboard({ transactions, stats, baseCurrency, rates, dateRange,
   const coverage = useMemo(() => (stats ? coverageLadder(stats) : null), [stats]);
   const series = useMemo(() => monthlySeries(transactions, baseCurrency, rates), [transactions, baseCurrency, rates]);
   const [openMetric, setOpenMetric] = useState<null | "income" | "expenses" | "net">(null);
+  const { balances, loading: balancesLoading } = useBalances();
+
+  // Live balance across every connected account, normalised to baseCurrency.
+  // Shows "—" rather than a partial figure when nothing is connected — a wrong
+  // balance is worse than a visibly absent one.
+  const liveBalance = useMemo(() => {
+    if (balancesLoading) return { value: "…", sub: "" };
+    if (!balances?.length) return { value: "—", sub: "Not connected" };
+    const total = balances.reduce((s, b) => s + convertAmount(b.amount, b.currency, baseCurrency, rates), 0);
+    const byCurrency = new Map<string, number>();
+    for (const b of balances) byCurrency.set(b.currency, (byCurrency.get(b.currency) ?? 0) + b.amount);
+    const sub = [...byCurrency.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([cur, amt]) => `${sym(cur)}${Math.round(amt).toLocaleString()}`)
+      .join(" · ");
+    return { value: fmtAbbrev(total, baseCurrency), sub };
+  }, [balances, balancesLoading, baseCurrency, rates]);
 
   return (
     <div style={{ maxWidth: "var(--container-max)", margin: "0 auto", padding: "40px 24px 80px" }}>
@@ -41,6 +59,7 @@ export function Dashboard({ transactions, stats, baseCurrency, rates, dateRange,
         <KpiTile label={`Income · ${kpis.period}`} value={kpis.income.value} delta={kpis.income.delta} sub={kpis.income.sub} onClick={() => setOpenMetric("income")} />
         <KpiTile label={`Expenses · ${kpis.period}`} value={kpis.expenses.value} delta={kpis.expenses.delta} sub={kpis.expenses.sub} onClick={() => setOpenMetric("expenses")} />
         <KpiTile label={`Net · ${kpis.period}`} value={kpis.net.value} delta={kpis.net.delta} sub={kpis.net.sub} onClick={() => setOpenMetric("net")} />
+        <KpiTile label="Live balance" value={liveBalance.value} sub={liveBalance.sub} />
         <Card style={{ padding: "1.25rem" }}>
           {coverage && <MilestoneLadder {...coverage} />}
         </Card>

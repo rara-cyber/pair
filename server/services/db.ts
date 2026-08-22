@@ -39,6 +39,17 @@ function createTables() {
       name      TEXT PRIMARY KEY,
       sortOrder INTEGER
     );
+
+    -- Transactions pulled from an API rather than a CSV. CSV rows are re-derived
+    -- from disk on every load, but API rows have no local file to re-read, so
+    -- they must persist. Stored as whole JSON: the shape is Transaction, and a
+    -- column-per-field table would need migrating every time that type changes.
+    CREATE TABLE IF NOT EXISTS api_transactions (
+      transferWiseId TEXT PRIMARY KEY,
+      source         TEXT NOT NULL,
+      json           TEXT NOT NULL,
+      syncedAt       TEXT NOT NULL
+    );
   `);
 }
 
@@ -214,10 +225,41 @@ export function addCategory(name: string): void {
   stmtAddCategory.run(name);
 }
 
+// ── API transactions ──────────────────────────────────────────────────────────
+
+const stmtUpsertApiTx = db.prepare(`
+  INSERT INTO api_transactions (transferWiseId, source, json, syncedAt)
+  VALUES (@transferWiseId, @source, @json, @syncedAt)
+  ON CONFLICT(transferWiseId) DO UPDATE SET
+    source = excluded.source, json = excluded.json, syncedAt = excluded.syncedAt
+`);
+const stmtAllApiTx = db.prepare<[], { json: string }>("SELECT json FROM api_transactions");
+const stmtDeleteApiTxBySource = db.prepare("DELETE FROM api_transactions WHERE source = ?");
+
+/** Upsert a batch of API-sourced transactions. `rows` are whole Transaction objects. */
+export function saveApiTransactions(source: string, rows: { transferWiseId: string }[]): number {
+  const syncedAt = new Date().toISOString();
+  const run = db.transaction((items: { transferWiseId: string }[]) => {
+    for (const r of items) {
+      stmtUpsertApiTx.run({ transferWiseId: r.transferWiseId, source, json: JSON.stringify(r), syncedAt });
+    }
+  });
+  run(rows);
+  return rows.length;
+}
+
+export function loadApiTransactions<T>(): T[] {
+  return stmtAllApiTx.all().map((r) => JSON.parse(r.json) as T);
+}
+
+export function clearApiTransactions(source: string): void {
+  stmtDeleteApiTxBySource.run(source);
+}
+
 // ── Clear All ─────────────────────────────────────────────────────────────────
 
 export function clearAll(): void {
-  db.exec("DROP TABLE IF EXISTS matches; DROP TABLE IF EXISTS enrichments; DROP TABLE IF EXISTS categories; DROP TABLE IF EXISTS category_list;");
+  db.exec("DROP TABLE IF EXISTS matches; DROP TABLE IF EXISTS enrichments; DROP TABLE IF EXISTS categories; DROP TABLE IF EXISTS category_list; DROP TABLE IF EXISTS api_transactions;");
   createTables();
   seedCategoryList();
   console.log("[db] cleared all tables");
