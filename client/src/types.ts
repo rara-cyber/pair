@@ -32,6 +32,8 @@ export interface Transaction {
   transactionDetailsType: string;
   /** Which system the row came from. Absent means Wise CSV (the original source). */
   source?: "wise" | "paypal";
+  /** Business line, derived from project patterns at load time. */
+  project?: string;
   invoiceLinks?: PdfLink[];
   remittanceLinks?: PdfLink[];
   categories?: string[];

@@ -197,3 +197,23 @@ export function categoryMonthly(
     });
   return { data, categories };
 }
+
+export interface ProjectTotals { name: string; income: number; expenses: number; net: number; count: number }
+
+/** Income, expenses and net per business line, FX-normalised to `base`. */
+export function projectTotals(txns: Transaction[], base: string, rates: FxRates | null): ProjectTotals[] {
+  const map = new Map<string, ProjectTotals>();
+  for (const t of txns) {
+    const name = t.project || "Unassigned";
+    const v = convertAmount(t.amount, t.currency, base, rates);
+    const cur = map.get(name) ?? { name, income: 0, expenses: 0, net: 0, count: 0 };
+    if (v >= 0) cur.income += v; else cur.expenses += v;
+    cur.net += v;
+    cur.count++;
+    map.set(name, cur);
+  }
+  // Most profitable first; unassigned always last so it reads as a remainder.
+  return [...map.values()].sort((a, b) =>
+    a.name === "Unassigned" ? 1 : b.name === "Unassigned" ? -1 : b.net - a.net,
+  );
+}

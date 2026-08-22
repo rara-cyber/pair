@@ -6,7 +6,7 @@ import { useTheme } from "./hooks/useTheme";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 import { TransactionTable } from "./components/TransactionTable";
 import { FilterBar } from "./components/FilterBar";
-import { DateFilter } from "./components/DateFilter";
+import { MonthRangeSlider } from "./components/MonthRangeSlider";
 import { DropZone } from "./components/DropZone";
 import { ProgressBadge } from "./components/ProgressBadge";
 import { ManualMatchModal } from "./components/ManualMatchModal";
@@ -33,13 +33,23 @@ function fmtAmount(value: number, currency: string): string {
   return `${sym}${value.toFixed(0)}`;
 }
 
+// One source of truth for the view tabs — they render in two places
+// (mobile and desktop headers) and previously drifted apart.
+type View = "overview" | "transactions" | "settings";
+const VIEW_TABS: { value: View; label: string }[] = [
+  { value: "overview", label: "Overview" },
+  { value: "transactions", label: "Transactions" },
+  { value: "settings", label: "Settings" },
+];
+
 function App() {
   const [toasts, setToasts] = useState<MatchToast[]>([]);
   const [manualMatchTx, setManualMatchTx] = useState<Transaction | null>(null);
   const [highlightedTxIds, setHighlightedTxIds] = useState<Set<string>>(new Set());
   const [baseCurrency, setBaseCurrency] = useState("EUR");
-  const [view, setView] = useState<"overview" | "transactions" | "settings">("overview");
+  const [view, setView] = useState<View>("overview");
   const [categories, setCategories] = useState<string[]>([]);
+  const [projects, setProjects] = useState<string[]>([]);
   const { rates, loading: ratesLoading, error: ratesError } = useFxRates();
   const { theme, toggle: toggleTheme } = useTheme();
   const isCompact = useMediaQuery("(max-width: 960px)");
@@ -48,6 +58,10 @@ function App() {
     fetch("/api/categories")
       .then((res) => res.json())
       .then((d: { categories: string[] }) => setCategories(d.categories))
+      .catch(() => {});
+    fetch("/api/projects")
+      .then((res) => res.json())
+      .then((d: { projects: { name: string }[] }) => setProjects(d.projects.map((p) => p.name)))
       .catch(() => {});
   }, []);
 
@@ -96,6 +110,15 @@ function App() {
     setDateRange,
     refetch,
   } = useTransactions();
+
+  const setTransactionProject = useCallback(async (transferWiseId: string, project: string) => {
+    await fetch(`/api/transaction/${encodeURIComponent(transferWiseId)}/project`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project }),
+    });
+    refetch();
+  }, [refetch]);
 
   const scrollToTransaction = useCallback((txId: string) => {
     setTimeout(() => {
@@ -190,9 +213,12 @@ function App() {
         ))}
       </div>
 
+      {/* Header + filter bar stick together. Wrapping them in one sticky
+          container avoids hardcoding the header height as the filter bar's
+          `top`, which differs between the compact and desktop layouts. */}
+      <div className="sticky top-0 z-30">
       {/* Header */}
       <header
-        className="sticky top-0 z-30"
         style={{
           background: "var(--background)",
           borderBottom: "1px solid var(--border)",
@@ -213,7 +239,7 @@ function App() {
               </div>
             </div>
             <div style={{ overflowX: 'auto' }}>
-              <FilterTabs tabs={[{ value: "overview", label: "Overview" }, { value: "transactions", label: "Transactions" }, { value: "settings", label: "Settings" }]} value={view} onChange={setView} />
+              <FilterTabs tabs={VIEW_TABS} value={view} onChange={setView} />
             </div>
           </div>
         ) : (
@@ -248,15 +274,7 @@ function App() {
               </div>
 
               {/* View tabs */}
-              <FilterTabs
-                tabs={[
-                  { value: "overview", label: "Overview" },
-                  { value: "transactions", label: "Transactions" },
-                  { value: "settings", label: "Settings" },
-                ]}
-                value={view}
-                onChange={setView}
-              />
+              <FilterTabs tabs={VIEW_TABS} value={view} onChange={setView} />
             </div>
 
             {/* Center: KPI strip */}
@@ -325,9 +343,9 @@ function App() {
           filters={filters}
           onRemove={removeFilter}
           onClear={clearFilters}
+          rightContent={<MonthRangeSlider dateRange={dateRange} onChange={setDateRange} />}
           leftContent={
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <DateFilter dateRange={dateRange} onChange={setDateRange} />
               <Select
                 value=""
                 onChange={(e) => { if (e.target.value) addFilter("_category", e.target.value); }}
@@ -337,10 +355,20 @@ function App() {
                   <option key={c} value={c}>{c}</option>
                 ))}
               </Select>
+              <Select
+                value=""
+                onChange={(e) => { if (e.target.value) addFilter("project", e.target.value); }}
+              >
+                <option value="">All projects</option>
+                {projects.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </Select>
             </div>
           }
         />
       )}
+      </div>
 
       <main>
         {error && (
@@ -361,9 +389,10 @@ function App() {
             rates={rates}
             dateRange={dateRange}
             onRangeChange={setDateRange}
+            onFilter={addFilter}
           />
         )}
-        {!loading && view === "transactions" && (
+                {!loading && view === "transactions" && (
           <TransactionTable
             transactions={transactions}
             sort={sort}
@@ -377,6 +406,8 @@ function App() {
             categories={categories}
             onCategoryChange={updateCategory}
             onAddCategory={addCategory}
+            projects={projects}
+            onProjectChange={setTransactionProject}
           />
         )}
         {!loading && view === "settings" && (
@@ -386,6 +417,12 @@ function App() {
             ratesLoading={ratesLoading}
             ratesError={ratesError}
             onCurrencyChange={setBaseCurrency}
+            onProjectsChanged={() => {
+              fetch("/api/projects").then((r) => r.json())
+                .then((d: { projects: { name: string }[] }) => setProjects(d.projects.map((p) => p.name)))
+                .catch(() => {});
+              refetch();
+            }}
           />
         )}
       </main>

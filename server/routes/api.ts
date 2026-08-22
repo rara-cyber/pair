@@ -11,7 +11,8 @@ import { progressEmitter, currentProgress, emitMatch } from "../services/progres
 import { extractPdfData } from "../services/pdfExtractor";
 import { getBalances } from "../services/balances";
 import { syncPaypalTransactions } from "../services/paypalTransactions";
-import { saveApiTransactions, loadApiTransactions } from "../services/db";
+import { assignProjects } from "../services/projects";
+import { saveApiTransactions, loadApiTransactions, getProjects, saveProject, deleteProject, setProjectOverride } from "../services/db";
 import { readdirSync } from "fs";
 import AdmZip from "adm-zip";
 import type { Transaction, PdfLink } from "../services/csvParser";
@@ -47,7 +48,7 @@ function loadAllTransactions(): Transaction[] {
   const csv = parseAllCsvs();
   const seen = new Set(csv.map((t) => t.transferWiseId));
   const api = loadApiTransactions<Transaction>().filter((t) => !seen.has(t.transferWiseId));
-  return [...csv, ...api].sort((a, b) => b.date.localeCompare(a.date));
+  return assignProjects([...csv, ...api].sort((a, b) => b.date.localeCompare(a.date)));
 }
 
 function refreshCachedFromCsvs() {
@@ -420,6 +421,42 @@ router.post("/match-manual", (req: Request, res: Response) => {
 });
 
 // ── Categories ──────────────────────────────────────────────────────────────
+
+router.get("/projects", (_req: Request, res: Response) => {
+  res.json({ projects: getProjects() });
+});
+
+router.post("/projects", (req: Request, res: Response) => {
+  const { name, patterns, sortOrder } = req.body as { name?: string; patterns?: unknown; sortOrder?: number };
+  const clean = String(name ?? "").trim();
+  if (!clean) { res.status(400).json({ error: "Name required" }); return; }
+  // Patterns are matched with includes(), so blanks would match everything.
+  const list = Array.isArray(patterns) ? patterns.map((p) => String(p).trim()).filter(Boolean) : [];
+  const order = typeof sortOrder === "number" ? sortOrder : getProjects().length;
+  saveProject(clean, list, order);
+  cachedData = null; hasLoaded = false; // rules changed → assignments must be re-derived
+  res.json({ projects: getProjects() });
+});
+
+router.delete("/projects/:name", (req: Request, res: Response) => {
+  deleteProject(req.params.name);
+  cachedData = null; hasLoaded = false;
+  res.json({ projects: getProjects() });
+});
+
+// Pin one transaction to a project. Empty string = deliberately unassigned;
+// null clears the pin so the rules apply again.
+router.post("/transaction/:transferWiseId/project", (req: Request, res: Response) => {
+  const id = req.params.transferWiseId;
+  const { project } = req.body as { project?: string | null };
+  const value = project === null || project === undefined ? null : String(project).trim();
+  setProjectOverride(id, value);
+
+  // Patch the cache in place so the change shows without a full reload.
+  const tx = cachedData?.transactions.find((t) => t.transferWiseId === id);
+  if (tx) tx.project = value ? value : undefined;
+  res.json({ transferWiseId: id, project: value });
+});
 
 router.get("/categories", (_req: Request, res: Response) => {
   res.json({ categories: getCategoryList() });

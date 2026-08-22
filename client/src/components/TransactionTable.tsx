@@ -20,6 +20,8 @@ interface Props {
   categories: string[];
   onCategoryChange: (transferWiseId: string, categories: string[]) => void;
   onAddCategory: (name: string) => void;
+  projects: string[];
+  onProjectChange: (transferWiseId: string, project: string) => void;
 }
 
 
@@ -30,6 +32,7 @@ const COLUMNS: { key: keyof Transaction; label: string; align?: string; defaultW
   { key: "description",       label: "Description",  defaultWidth: 160 },
   { key: "paymentReference",  label: "Payment Ref",  defaultWidth: 112 },
   { key: "payerName",         label: "Payer Name",   defaultWidth: 112 },
+  { key: "project",           label: "Project",      defaultWidth: 120 },
 ];
 
 const DOCS_DEFAULT_WIDTH = 128;
@@ -59,6 +62,8 @@ export function TransactionTable({
   categories,
   onCategoryChange,
   onAddCategory,
+  projects,
+  onProjectChange,
 }: Props) {
   const [colWidths, setColWidths] = useState<Record<string, number>>(() =>
     Object.fromEntries(COLUMNS.map((c) => [c.key, c.defaultWidth]))
@@ -394,6 +399,26 @@ export function TransactionTable({
                   } else {
                     display = String(value ?? "");
                   }
+                  // The Project cell is editable: a manual pick overrides the
+                  // rule for this row only.
+                  if (col.key === "project") {
+                    display = (
+                      <select
+                        value={tx.project ?? ""}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => { e.stopPropagation(); onProjectChange(tx.transferWiseId, e.target.value); }}
+                        style={{
+                          width: "100%", background: "transparent", border: "none",
+                          color: tx.project ? "var(--foreground)" : "var(--muted-foreground)",
+                          font: "inherit", cursor: "pointer", outline: "none", padding: 0,
+                        }}
+                        title="Pick a project for this transaction (overrides the rule)"
+                      >
+                        <option value="">—</option>
+                        {projects.map((p) => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    );
+                  }
                   const isId = col.key === "transferWiseId";
                   const isNumeric = col.key === "amount";
                   return (
@@ -420,7 +445,7 @@ export function TransactionTable({
                           onFilter("_month", month);
                         } else if (col.key === "amount") {
                           onFilter("currency", tx.currency);
-                        } else {
+                        } else if (col.key !== "project") {
                           onFilter(col.key, String(value ?? ""));
                         }
                       }}

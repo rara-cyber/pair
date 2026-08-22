@@ -8,6 +8,7 @@ import { MilestoneLadder } from "./ui/MilestoneLadder";
 import { KpiTrendDialog } from "./ui/KpiTrendDialog";
 import { kpisFor, coverageLadder, monthlySeries, fmtAbbrev, sym } from "../lib/derive";
 import { CategoryStackChart } from "./CategoryStackChart";
+import { ProjectBreakdown } from "./ProjectBreakdown";
 import { CategoryDonut } from "./CategoryDonut";
 import { TopMerchantsChart } from "./TopMerchantsChart";
 
@@ -18,9 +19,10 @@ interface Props {
   rates: FxRates | null;
   dateRange: { from: string | null; to: string | null };
   onRangeChange: (from: string | null, to: string | null) => void;
+  onFilter: (key: string, value: string) => void;
 }
 
-export function Dashboard({ transactions, stats, baseCurrency, rates, dateRange, onRangeChange }: Props) {
+export function Dashboard({ transactions, stats, baseCurrency, rates, dateRange, onRangeChange, onFilter }: Props) {
   const kpis = useMemo(() => kpisFor(transactions, baseCurrency, rates), [transactions, baseCurrency, rates]);
   const coverage = useMemo(() => (stats ? coverageLadder(stats) : null), [stats]);
   const series = useMemo(() => monthlySeries(transactions, baseCurrency, rates), [transactions, baseCurrency, rates]);
@@ -55,7 +57,9 @@ export function Dashboard({ transactions, stats, baseCurrency, rates, dateRange,
         </div>
       </header>
 
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "28px" }}>
+      {/* 5 tiles must share one row: at --container-max (72rem) the content box is
+          1104px, so 5 × 200px + 4 × 12px gap = 1048px fits, where 220px would not. */}
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px", marginBottom: "28px" }}>
         <KpiTile label={`Income · ${kpis.period}`} value={kpis.income.value} delta={kpis.income.delta} sub={kpis.income.sub} onClick={() => setOpenMetric("income")} />
         <KpiTile label={`Expenses · ${kpis.period}`} value={kpis.expenses.value} delta={kpis.expenses.delta} sub={kpis.expenses.sub} onClick={() => setOpenMetric("expenses")} />
         <KpiTile label={`Net · ${kpis.period}`} value={kpis.net.value} delta={kpis.net.delta} sub={kpis.net.sub} onClick={() => setOpenMetric("net")} />
@@ -75,6 +79,9 @@ export function Dashboard({ transactions, stats, baseCurrency, rates, dateRange,
 
       <div style={{ marginTop: "28px" }}>
         <CategoryStackChart transactions={transactions} baseCurrency={baseCurrency} rates={rates} dateRange={dateRange} onRangeChange={onRangeChange} />
+      </div>
+      <div style={{ marginTop: "12px" }}>
+        <ProjectBreakdown transactions={transactions} baseCurrency={baseCurrency} rates={rates} onFilter={onFilter} />
       </div>
       <div style={{ marginTop: "12px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "12px" }}>
         <CategoryDonut transactions={transactions} baseCurrency={baseCurrency} rates={rates} dateRange={dateRange} onRangeChange={onRangeChange} />
