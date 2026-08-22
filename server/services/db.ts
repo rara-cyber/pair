@@ -342,6 +342,16 @@ export function loadApiTransactions<T>(): T[] {
   return stmtAllApiTx.all().map((r) => JSON.parse(r.json) as T);
 }
 
+/** Newest syncedAt for a source, or null if it has never been synced. */
+export function lastSyncedAt(source: string): string | null {
+  const row = db.prepare("SELECT MAX(syncedAt) AS at FROM api_transactions WHERE source = ?").get(source) as { at: string | null };
+  return row?.at ?? null;
+}
+
+export function countApiTransactions(source: string): number {
+  return (db.prepare("SELECT COUNT(*) AS c FROM api_transactions WHERE source = ?").get(source) as { c: number }).c;
+}
+
 export function clearApiTransactions(source: string): void {
   stmtDeleteApiTxBySource.run(source);
 }

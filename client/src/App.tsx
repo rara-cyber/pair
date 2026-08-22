@@ -435,6 +435,7 @@ function App() {
             ratesLoading={ratesLoading}
             ratesError={ratesError}
             onCurrencyChange={setBaseCurrency}
+            onSynced={refetch}
             onProjectsChanged={() => {
               fetch("/api/projects").then((r) => r.json())
                 .then((d: { projects: { name: string }[] }) => setProjects(d.projects.map((p) => p.name)))
