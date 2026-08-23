@@ -62,7 +62,7 @@ export function ProjectsSettings({ onChanged }: { onChanged?: () => void }) {
   };
 
   return (
-    <Card style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem", maxWidth: "34rem" }}>
+    <Card style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
       <div>
         <div style={{ fontSize: "0.875rem", fontWeight: 500 }}>Projects</div>
         <div style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>
