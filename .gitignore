@@ -12,3 +12,6 @@ data/
 .claude/
 CLAUDE.md
 .playwright-mcp/
+
+# macOS Finder metadata — noise, and it blocks rebases when it churns
+.DS_Store
