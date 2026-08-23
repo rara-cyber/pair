@@ -38,7 +38,7 @@ export function UnmatchedDocuments() {
         <div style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>
           PDFs the matcher could not attach. Many are the receipt half of an invoice/receipt
           pair whose transaction already has a document — only one document per transaction.
-          To attach one by hand, open its transaction in the table and click the ID column.
+          To attach one by hand, find its transaction in the table and click + Link in the Documents column.
         </div>
       </div>
 

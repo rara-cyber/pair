@@ -505,7 +505,6 @@ export function TransactionTable({
                       />
                     );
                   }
-                  const isId = col.key === "transferWiseId";
                   const isNumeric = col.key === "amount";
                   return (
                     <td
@@ -524,9 +523,7 @@ export function TransactionTable({
                         ...(isNumeric ? { fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" } : {}),
                       }}
                       onClick={() => {
-                        if (isId) {
-                          onManualMatch(tx);
-                        } else if (col.key === "date") {
+                        if (col.key === "date") {
                           const month = String(value ?? "").slice(0, 7);
                           onFilter("_month", month);
                         } else if (col.key === "amount") {
@@ -535,7 +532,7 @@ export function TransactionTable({
                           onFilter(col.key, String(value ?? ""));
                         }
                       }}
-                      title={isId ? "Click to link a document manually" : String(display)}
+                      title={String(display)}
                     >
                       {display}
                     </td>
@@ -565,10 +562,35 @@ export function TransactionTable({
                     borderBottom: "1px solid var(--border)",
                   }}
                 >
-                  <PdfLink
-                    links={allLinks}
-                    onDelete={(filename, type) => onDeleteLink(tx.transferWiseId, filename, type)}
-                  />
+                  {hasDoc ? (
+                    <PdfLink
+                      links={allLinks}
+                      onDelete={(filename, type) => onDeleteLink(tx.transferWiseId, filename, type)}
+                    />
+                  ) : (
+                    // Manual linking used to be an unmarked click on the ID cell,
+                    // which is to say it was invisible. An empty Documents cell is
+                    // exactly where someone looks when a document is missing.
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onManualMatch(tx); }}
+                      title="Link a document to this transaction"
+                      style={{
+                        padding: "2px 8px",
+                        borderRadius: "var(--radius-lg)",
+                        border: "1px dashed var(--border)",
+                        background: "transparent",
+                        color: "var(--muted-foreground)",
+                        fontSize: "0.6875rem",
+                        fontFamily: "var(--font-sans)",
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--foreground)"; e.currentTarget.style.borderColor = "var(--foreground)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted-foreground)"; e.currentTarget.style.borderColor = "var(--border)"; }}
+                    >
+                      + Link
+                    </button>
+                  )}
                 </td>
               </tr>
             );

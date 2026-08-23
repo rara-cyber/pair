@@ -395,38 +395,50 @@ router.get("/unmatched-pdfs", async (req: Request, res: Response) => {
       const filePath = join(unmatchedDir, filename);
       try {
         const { text, dates, amounts } = await extractPdfData(filePath);
-        return { filename, text: text.substring(0, 800), dates, amounts, previewUrl: `/api/pdf/unmatched/${encodeURIComponent(filename)}` };
+        // The whole extracted text, not an 800-char head: the manual-match
+        // modal searches this, and the invoice number or payer name routinely
+        // sits past the opening block of boilerplate. extractPdfData already
+        // caps at 3000 chars, so that is the real ceiling — do not add a second
+        // one here. `hasText` separates "no hits" from "nothing to search": a
+        // scanned PDF has no text layer at all, and we do not run OCR yet.
+        return {
+          filename,
+          text,
+          hasText: text.trim().length >= 20,
+          dates,
+          amounts,
+          previewUrl: `/api/pdf/unmatched/${encodeURIComponent(filename)}`,
+        };
       } catch {
-        return { filename, text: "", dates: [], amounts: [], previewUrl: `/api/pdf/unmatched/${encodeURIComponent(filename)}` };
+        return { filename, text: "", hasText: false, dates: [], amounts: [], previewUrl: `/api/pdf/unmatched/${encodeURIComponent(filename)}` };
       }
     })
   );
   res.json({ pdfs });
 });
 
-// Manually link an unmatched PDF to a transaction
-router.post("/match-manual", (req: Request, res: Response) => {
-  const { filename, transferWiseId } = req.body as { filename?: string; transferWiseId?: string };
-  if (!filename || !transferWiseId) {
-    res.status(400).json({ error: "filename and transferWiseId required" });
-    return;
-  }
-  if (filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
-    res.status(400).json({ error: "Invalid filename" });
-    return;
-  }
+// A filename that arrives over the wire is joined onto a data directory, so it
+// must not be able to climb out of one.
+const unsafeName = (f: string) => f.includes("..") || f.includes("/") || f.includes("\\");
 
-  const srcPath = join(DATA_DIR, "document-unmatched", filename);
-  if (!existsSync(srcPath)) {
-    res.status(404).json({ error: "File not found in document-unmatched" });
-    return;
-  }
+/**
+ * Attach a document to a transaction and record it everywhere that matters.
+ *
+ * The archive path, the DB row, the SSE event and the in-memory cache patch are
+ * identical whether the document came from `document-unmatched/` or straight off
+ * the user's disk — only how the bytes reach the destination differs, which is
+ * what `deliver` supplies. Both routes below go through here so the
+ * one-document-per-transaction bookkeeping has a single source of truth.
+ */
+function linkToTransaction(
+  filename: string,
+  transferWiseId: string,
+  deliver: (destPath: string) => void,
+): { ok: true; pdfLink: PdfLink } | { ok: false; status: number; error: string } {
+  if (unsafeName(filename)) return { ok: false, status: 400, error: "Invalid filename" };
 
   const tx = cachedData?.transactions.find((t) => t.transferWiseId === transferWiseId);
-  if (!tx) {
-    res.status(404).json({ error: "Transaction not found" });
-    return;
-  }
+  if (!tx) return { ok: false, status: 404, error: "Transaction not found" };
 
   const type: "Sales" | "Expenses" = tx.amount < 0 ? "Expenses" : "Sales";
   const year = tx.date.substring(0, 4);
@@ -435,13 +447,12 @@ router.post("/match-manual", (req: Request, res: Response) => {
 
   const destDir = join(DATA_DIR, "documents", year, monthNum, type);
   mkdirSync(destDir, { recursive: true });
-  renameSync(srcPath, join(destDir, filename));
+  deliver(join(destDir, filename));
 
   const url = `/api/pdf/documents/${year}/${monthNum}/${type}/${encodeURIComponent(filename)}`;
-  const row = { filename, month: yearMonth, type, transferWiseId, matchMethod: "manual", url };
-  saveMatch(row);
+  saveMatch({ filename, month: yearMonth, type, transferWiseId, matchMethod: "manual", url });
 
-  const pdfLink = { filename, month: yearMonth, url, matchMethod: "manual", linkType: type };
+  const pdfLink: PdfLink = { filename, month: yearMonth, url, matchMethod: "manual", linkType: type };
   emitMatch(transferWiseId, type, pdfLink);
 
   if (cachedData) {
@@ -455,7 +466,66 @@ router.post("/match-manual", (req: Request, res: Response) => {
     });
   }
 
-  res.json({ ok: true, pdfLink });
+  return { ok: true, pdfLink };
+}
+
+// Manually link a PDF that is already sitting in document-unmatched/
+router.post("/match-manual", (req: Request, res: Response) => {
+  const { filename, transferWiseId } = req.body as { filename?: string; transferWiseId?: string };
+  if (!filename || !transferWiseId) {
+    res.status(400).json({ error: "filename and transferWiseId required" });
+    return;
+  }
+  if (unsafeName(filename)) {
+    res.status(400).json({ error: "Invalid filename" });
+    return;
+  }
+
+  const srcPath = join(DATA_DIR, "document-unmatched", filename);
+  if (!existsSync(srcPath)) {
+    res.status(404).json({ error: "File not found in document-unmatched" });
+    return;
+  }
+
+  const result = linkToTransaction(filename, transferWiseId, (dest) => renameSync(srcPath, dest));
+  if (!result.ok) {
+    res.status(result.status).json({ error: result.error });
+    return;
+  }
+  res.json({ ok: true, pdfLink: result.pdfLink });
+});
+
+// Upload a document straight onto one transaction, for when nothing in
+// document-unmatched/ fits. Deliberately NOT /match-pdf: that drops into
+// document-dump/ and kicks off a full AI matching pass, which is free to attach
+// the file to some *other* transaction. Here the user has already decided.
+router.post("/match-upload", upload.single("file"), (req: Request, res: Response) => {
+  if (!req.file) {
+    res.status(400).json({ error: "No file uploaded" });
+    return;
+  }
+  const { transferWiseId } = req.body as { transferWiseId?: string };
+  if (!transferWiseId) {
+    res.status(400).json({ error: "transferWiseId required" });
+    return;
+  }
+  const filename = basename(req.file.originalname);
+  if (!filename.toLowerCase().endsWith(".pdf")) {
+    res.status(400).json({ error: "Expected a .pdf file" });
+    return;
+  }
+  if (unsafeName(filename)) {
+    res.status(400).json({ error: "Invalid filename" });
+    return;
+  }
+
+  const buffer = req.file.buffer;
+  const result = linkToTransaction(filename, transferWiseId, (dest) => writeFileSync(dest, buffer));
+  if (!result.ok) {
+    res.status(result.status).json({ error: result.error });
+    return;
+  }
+  res.json({ ok: true, pdfLink: result.pdfLink });
 });
 
 // ── Categories ──────────────────────────────────────────────────────────────
