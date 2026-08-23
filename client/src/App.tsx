@@ -410,6 +410,10 @@ function App() {
           />
         )}
                 {!loading && view === "transactions" && (
+          // Full-bleed on purpose: ten columns need the width, and constraining
+          // this to --container-max like Dashboard and Settings pushes the
+          // Documents column off screen.
+          <div style={{ padding: "0 0 40px" }}>
           <TransactionTable
             transactions={transactions}
             sort={sort}
@@ -427,6 +431,7 @@ function App() {
             onProjectChange={setTransactionProject}
             onAddProject={addProject}
           />
+          </div>
         )}
         {!loading && view === "settings" && (
           <Settings

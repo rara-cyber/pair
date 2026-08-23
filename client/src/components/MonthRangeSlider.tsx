@@ -80,9 +80,13 @@ export function MonthRangeSlider({ dateRange, onChange, months = 12 }: Props) {
   const preset = activePresetKey(dateRange);
   const isAll = preset === "all";
   const next = nextRangeKey(preset);
+  const monthName = (i: number) => `${stops[i].label} '${String(stops[i].year).slice(2)}`;
   const label = preset !== "custom"
     ? labelForKey(preset)
-    : `${stops[startIdx].label} '${String(stops[startIdx].year).slice(2)} – ${stops[endIdx].label} '${String(stops[endIdx].year).slice(2)}`;
+    // A single month reads as "Mar '26", not "Mar '26 – Mar '26".
+    : startIdx === endIdx
+      ? monthName(startIdx)
+      : `${monthName(startIdx)} – ${monthName(endIdx)}`;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", minWidth: "260px", flex: "1 1 260px", maxWidth: "420px" }}>
@@ -144,22 +148,36 @@ export function MonthRangeSlider({ dateRange, onChange, months = 12 }: Props) {
           an evenly-spread row drifts up to ~4px out at the edges and the letters
           stop lining up with the months they mark. */}
       <div style={{ position: "relative", height: "0.75rem" }}>
-        {stops.map((s, i) => (
-          <span
-            key={`${s.y}-${s.m}`}
-            style={{
-              position: "absolute",
-              left: `calc(7px + (100% - 14px) * ${last === 0 ? 0 : i / last})`,
-              transform: "translateX(-50%)",
-              fontSize: "0.5625rem",
-              fontFamily: "var(--font-mono)",
-              color: "var(--muted-foreground)",
-              opacity: i >= startIdx && i <= endIdx ? 1 : 0.4,
-            }}
-          >
-            {s.label[0]}
-          </span>
-        ))}
+        {stops.map((s, i) => {
+          const inRange = i >= startIdx && i <= endIdx;
+          const only = startIdx === i && endIdx === i;
+          return (
+            <button
+              key={`${s.y}-${s.m}`}
+              // Click a month to isolate it — both handles land on that stop.
+              onClick={() => emit(i, i)}
+              title={`Show ${s.label} ${s.year} only`}
+              style={{
+                position: "absolute",
+                left: `calc(7px + (100% - 14px) * ${last === 0 ? 0 : i / last})`,
+                transform: "translateX(-50%)",
+                // Padding widens the hit area; a single glyph is too small to aim at.
+                padding: "0 0.25rem",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontSize: "0.5625rem",
+                fontFamily: "var(--font-mono)",
+                fontWeight: only ? 600 : 400,
+                color: only ? "var(--foreground)" : "var(--muted-foreground)",
+                opacity: inRange ? 1 : 0.4,
+                lineHeight: 1,
+              }}
+            >
+              {s.label[0]}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

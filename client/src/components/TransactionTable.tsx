@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { Transaction, PdfLink as PdfLinkType, SortConfig } from "../types";
 import { PdfLink } from "./PdfLink";
 import { CategoryPicker } from "./CategoryPicker";
@@ -71,6 +71,8 @@ export function TransactionTable({
   const [colWidths, setColWidths] = useState<Record<string, number>>(() =>
     Object.fromEntries(COLUMNS.map((c) => [c.key, c.defaultWidth]))
   );
+  const [query, setQuery] = useState("");
+  const [focused, setFocused] = useState(false);
   const [docsWidth, setDocsWidth] = useState(DOCS_DEFAULT_WIDTH);
   const [categoryWidth, setCategoryWidth] = useState(CATEGORY_DEFAULT_WIDTH);
 
@@ -119,14 +121,102 @@ export function TransactionTable({
     document.body.style.userSelect = "none";
   };
 
+  // Search lives here rather than in the shared `filters` array on purpose: those
+  // feed the dashboard too, and a stale search term silently reshaping the KPIs
+  // and charts would be worse than useless on a bookkeeping screen.
+  const searched = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return transactions;
+    return transactions.filter((tx) =>
+      [
+        tx.description, tx.paymentReference, tx.payerName, tx.payeeName, tx.merchant,
+        tx.transferWiseId, tx.project, tx.currency,
+        tx.categories?.join(" "),
+        String(tx.amount),
+      ]
+        .filter(Boolean)
+        .some((f) => String(f).toLowerCase().includes(q)),
+    );
+  }, [transactions, query]);
+
   return (
+    // One card: the search is the table's header, not a floating field above it.
+    // overflow:hidden lets the scroll area's top edge meet the header cleanly at
+    // the rounded corners.
+    <div
+      style={{
+        // Sits flush under the filter bar, whose bottom border already draws the
+        // line between them — a top border here would double it. Square top
+        // corners for the same reason: this reads as one continuous surface.
+        borderBottom: "1px solid var(--border)",
+        borderRadius: "0 0 12px 12px",
+        background: "var(--card)",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          display: "flex", alignItems: "center", gap: "0.6rem",
+          padding: "0 14px", height: "44px",
+          borderBottom: "1px solid var(--border)",
+        }}
+      >
+        <svg
+          width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke={focused || query ? "var(--foreground)" : "var(--muted-foreground)"}
+          strokeWidth="2" strokeLinecap="round"
+          style={{ flexShrink: 0, transition: "stroke 140ms ease" }}
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-3.5-3.5" />
+        </svg>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder="Search description, payer, merchant, reference, ID, amount…"
+          style={{
+            // Borderless and transparent: the card already provides the frame,
+            // and a second border here fights the table's own edge.
+            flex: 1, minWidth: 0, background: "transparent", border: "none",
+            outline: "none", padding: 0, height: "100%",
+            color: "var(--foreground)", fontSize: "0.8125rem",
+            fontFamily: "var(--font-sans)",
+          }}
+        />
+        {query && (
+          <span
+            style={{
+              display: "inline-flex", alignItems: "center", gap: "0.6rem",
+              fontSize: "0.6875rem", color: "var(--muted-foreground)",
+              fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums",
+              whiteSpace: "nowrap", flexShrink: 0,
+            }}
+          >
+            {/* Matches the uppercase tracked treatment of the column headers below. */}
+            <span style={{ textTransform: "uppercase", letterSpacing: "var(--tracking-wide)" }}>
+              {searched.length} / {transactions.length}
+            </span>
+            <button
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              style={{
+                background: "none", border: "none", cursor: "pointer", padding: 0,
+                color: "var(--muted-foreground)", fontSize: "0.6875rem",
+                fontFamily: "var(--font-sans)",
+              }}
+            >
+              clear
+            </button>
+          </span>
+        )}
+      </div>
     <div
       style={{
         overflow: "auto",
-        maxHeight: "calc(100vh - 8rem)",
-        border: "1px solid var(--border)",
-        borderRadius: "12px",
-        background: "var(--card)",
+        // The card owns the border now; the scroll area sits flush inside it.
+        maxHeight: "calc(100vh - 8rem - 44px)",
       }}
     >
         <table
@@ -326,7 +416,7 @@ export function TransactionTable({
             </tr>
           </thead>
         <tbody>
-          {transactions.map((tx, i) => {
+          {searched.map((tx, i) => {
             const allLinks: PdfLinkType[] = [
               ...(tx.invoiceLinks ?? []).map((l) => ({ ...l, linkType: "Expenses" as const })),
               ...(tx.remittanceLinks ?? []).map((l) => ({ ...l, linkType: "Sales" as const })),
@@ -415,7 +505,6 @@ export function TransactionTable({
                       />
                     );
                   }
-                  const isId = col.key === "transferWiseId";
                   const isNumeric = col.key === "amount";
                   return (
                     <td
@@ -434,9 +523,7 @@ export function TransactionTable({
                         ...(isNumeric ? { fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" } : {}),
                       }}
                       onClick={() => {
-                        if (isId) {
-                          onManualMatch(tx);
-                        } else if (col.key === "date") {
+                        if (col.key === "date") {
                           const month = String(value ?? "").slice(0, 7);
                           onFilter("_month", month);
                         } else if (col.key === "amount") {
@@ -445,7 +532,7 @@ export function TransactionTable({
                           onFilter(col.key, String(value ?? ""));
                         }
                       }}
-                      title={isId ? "Click to link a document manually" : String(display)}
+                      title={String(display)}
                     >
                       {display}
                     </td>
@@ -475,16 +562,42 @@ export function TransactionTable({
                     borderBottom: "1px solid var(--border)",
                   }}
                 >
-                  <PdfLink
-                    links={allLinks}
-                    onDelete={(filename, type) => onDeleteLink(tx.transferWiseId, filename, type)}
-                  />
+                  {hasDoc ? (
+                    <PdfLink
+                      links={allLinks}
+                      onDelete={(filename, type) => onDeleteLink(tx.transferWiseId, filename, type)}
+                    />
+                  ) : (
+                    // Manual linking used to be an unmarked click on the ID cell,
+                    // which is to say it was invisible. An empty Documents cell is
+                    // exactly where someone looks when a document is missing.
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onManualMatch(tx); }}
+                      title="Link a document to this transaction"
+                      style={{
+                        padding: "2px 8px",
+                        borderRadius: "var(--radius-lg)",
+                        border: "1px dashed var(--border)",
+                        background: "transparent",
+                        color: "var(--muted-foreground)",
+                        fontSize: "0.6875rem",
+                        fontFamily: "var(--font-sans)",
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--foreground)"; e.currentTarget.style.borderColor = "var(--foreground)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted-foreground)"; e.currentTarget.style.borderColor = "var(--border)"; }}
+                    >
+                      + Link
+                    </button>
+                  )}
                 </td>
               </tr>
             );
           })}
         </tbody>
       </table>
+    </div>
     </div>
   );
 }

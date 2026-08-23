@@ -15,6 +15,12 @@ const MONTH_MAP: Record<string, string> = {
   jun: "06", jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12",
 };
 
+// Currency codes that appear on documents this account actually receives. It
+// holds USD, EUR, GBP and CNY; the rest are what suppliers have invoiced in. A
+// code missing here means the document extracts NO amounts at all — that is how
+// a CN¥522.41 invoice became unmatchable. Add codes here, not to a pattern.
+const CURRENCY_CODES = "USD|EUR|GBP|CZK|CNY|RMB|CHF|CAD|AUD|SGD|INR|THB|JPY|PLN|SEK|NOK|DKK|HUF";
+
 function extractAmounts(text: string): number[] {
   const amounts = new Set<number>();
 
@@ -24,10 +30,17 @@ function extractAmounts(text: string): number[] {
     // $123.45, €123.45, £123.45, ¥123.45 (also matches the ¥ inside "CN¥123.45")
     /[$€£¥]\s?([\d,]+\.?\d*)/g,
     // 123.45 USD / 123,45 EUR / 522.41 CNY …
-    // The account holds USD, EUR, GBP and CNY; the rest are currencies suppliers
-    // have actually invoiced in. A missing code means the document extracts no
-    // amounts at all, which is how a CN¥522.41 invoice became unmatchable.
-    /([\d.,]+)\s*(?:USD|EUR|GBP|CZK|CNY|RMB|CHF|CAD|AUD|SGD|INR|THB|JPY|PLN|SEK|NOK|DKK|HUF)\b/g,
+    new RegExp(`([\\d.,]+)\\s*(?:${CURRENCY_CODES})\\b`, "g"),
+    // The mirror image: "Total (USD): 37.20", "USD 37.20", "EUR: 30.50". The
+    // code comes *first* here, which the pattern above cannot see — a 2Checkout
+    // invoice writes every figure that way and so extracted no amounts at all,
+    // leaving the matcher nothing to narrow candidates by.
+    //
+    // Horizontal whitespace only, never `\s`: a code routinely ends a line and
+    // the next line starts with a number that is not an amount. Crossing the
+    // newline read "0.00 USD⏎24% European VAT" as 24 and "4,29 EUR⏎11/2025" as
+    // 11 — a VAT rate and a month, both landing in the candidate filter.
+    new RegExp(`(?:${CURRENCY_CODES})\\b[)\\]]?[ \\t]*:?[ \\t]*([\\d.,]+)`, "g"),
   ];
 
   for (const pattern of patterns) {

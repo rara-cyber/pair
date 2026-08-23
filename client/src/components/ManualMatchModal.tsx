@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { Transaction, PdfLink } from "../types";
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogBody, DialogFooter } from "./ui/Dialog";
 import { Button } from "./ui/Button";
@@ -6,6 +6,8 @@ import { Button } from "./ui/Button";
 interface UnmatchedPdf {
   filename: string;
   text: string;
+  /** False when the PDF carries no text layer — a scan. Nothing to search. */
+  hasText: boolean;
   dates: string[];
   amounts: number[];
   previewUrl: string;
@@ -90,6 +92,13 @@ function PdfCard({
         {!info.date && !info.amount && pdf.dates[0] && (
           <span style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>{pdf.dates[0]}</span>
         )}
+        {/* A scan has no text layer, so search can never reach it. Say so on the
+            card rather than letting it look like an empty document. */}
+        {!pdf.hasText && (
+          <span style={{ fontSize: "0.6875rem", color: "var(--muted-foreground)", fontStyle: "italic" }}>
+            no text — not searchable
+          </span>
+        )}
       </div>
     </button>
   );
@@ -101,6 +110,8 @@ export function ManualMatchModal({ transaction, onClose, onMatched }: Props) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/unmatched-pdfs")
@@ -138,6 +149,41 @@ export function ManualMatchModal({ transaction, onClose, onMatched }: Props) {
       setSubmitting(false);
     }
   }, [selected, transaction, onMatched, onClose]);
+
+  // Search covers the extracted text, not just the filename: invoices are named
+  // things like "INV-20260219-001.pdf", so the payer, the invoice number and the
+  // amount only exist inside the document. Lowercasing the haystack once keeps
+  // it off the keystroke path.
+  const haystacks = useMemo(
+    () => pdfs.map((p) => `${p.filename}\n${p.text}`.toLowerCase()),
+    [pdfs],
+  );
+  const needle = q.trim().toLowerCase();
+  const filtered = useMemo(
+    () => (needle ? pdfs.filter((_, i) => haystacks[i].includes(needle)) : pdfs),
+    [pdfs, haystacks, needle],
+  );
+
+  const handleUpload = useCallback(async (file: File) => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("transferWiseId", transaction.transferWiseId);
+      const res = await fetch("/api/match-upload", { method: "POST", body: form });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error ?? "Upload failed");
+      }
+      const { pdfLink } = await res.json();
+      onMatched(pdfLink);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+      setSubmitting(false);
+    }
+  }, [transaction, onMatched, onClose]);
 
   const txLabel = [
     transaction.date,
@@ -185,9 +231,28 @@ export function ManualMatchModal({ transaction, onClose, onMatched }: Props) {
               flexShrink: 0,
             }}
           >
-            <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>
-              {loading ? "Loading…" : `${pdfs.length} unmatched file${pdfs.length !== 1 ? "s" : ""}`}
+            <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)", marginBottom: "0.5rem" }}>
+              {loading
+                ? "Loading…"
+                : needle
+                  ? `${filtered.length} of ${pdfs.length} files`
+                  : `${pdfs.length} unmatched file${pdfs.length !== 1 ? "s" : ""}`}
             </p>
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search name or contents…"
+              style={{
+                width: "100%",
+                padding: "0.375rem 0.5rem",
+                borderRadius: "var(--radius-lg)",
+                border: "1px solid var(--input)",
+                background: "var(--background)",
+                color: "var(--foreground)",
+                fontSize: "0.75rem",
+                outline: "none",
+              }}
+            />
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
             {loading && (
@@ -196,7 +261,12 @@ export function ManualMatchModal({ transaction, onClose, onMatched }: Props) {
             {!loading && pdfs.length === 0 && (
               <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)", textAlign: "center", marginTop: "2rem" }}>No unmatched files</p>
             )}
-            {pdfs.map((pdf) => (
+            {!loading && pdfs.length > 0 && filtered.length === 0 && (
+              <p style={{ fontSize: "0.75rem", color: "var(--muted-foreground)", textAlign: "center", marginTop: "2rem" }}>
+                Nothing matches “{q.trim()}”
+              </p>
+            )}
+            {filtered.map((pdf) => (
               <PdfCard
                 key={pdf.filename}
                 pdf={pdf}
@@ -204,6 +274,42 @@ export function ManualMatchModal({ transaction, onClose, onMatched }: Props) {
                 onClick={() => setSelected(pdf)}
               />
             ))}
+          </div>
+
+          {/* The escape hatch from the list above: when none of the unmatched
+              files is the right one, put the right one in directly. This links
+              to THIS transaction rather than going through /match-pdf, which
+              would hand the file to the AI matcher to place wherever it liked. */}
+          <div style={{ padding: "0.625rem 1rem", borderTop: "1px solid var(--border)", flexShrink: 0 }}>
+            <input
+              ref={fileInput}
+              type="file"
+              accept="application/pdf,.pdf"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                // Reset so picking the same file twice still fires a change.
+                e.target.value = "";
+                if (file) void handleUpload(file);
+              }}
+            />
+            <button
+              onClick={() => fileInput.current?.click()}
+              disabled={submitting}
+              style={{
+                width: "100%",
+                padding: "0.375rem",
+                borderRadius: "var(--radius-lg)",
+                border: "1px dashed var(--border)",
+                background: "transparent",
+                color: "var(--muted-foreground)",
+                fontSize: "0.75rem",
+                fontFamily: "var(--font-sans)",
+                cursor: submitting ? "default" : "pointer",
+              }}
+            >
+              None of these? Upload a PDF
+            </button>
           </div>
         </div>
 
