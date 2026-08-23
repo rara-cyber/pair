@@ -226,9 +226,20 @@ router.post("/match-pdf", upload.single("file"), (req: Request, res: Response) =
     res.status(400).json({ error: "No file uploaded" });
     return;
   }
+  const safeFilename = basename(req.file.originalname);
+
+  // Re-dropping a document that is already attached used to look like nothing
+  // happened: the file was written to the dump, and aiMatchTransactions then
+  // deleted it as a stale duplicate with only a server-console line to show for
+  // it. Answer here instead, where there is someone to tell.
+  const existing = loadAllMatches().find((m) => m.filename === safeFilename);
+  if (existing) {
+    res.json({ alreadyLinked: true, filename: safeFilename, transferWiseId: existing.transferWiseId, url: existing.url });
+    return;
+  }
+
   const dumpDir = join(DATA_DIR, "document-dump");
   mkdirSync(dumpDir, { recursive: true });
-  const safeFilename = basename(req.file.originalname);
   writeFileSync(join(dumpDir, safeFilename), req.file.buffer);
 
   // If this file was previously marked unmatched, clear it so the matcher retries it

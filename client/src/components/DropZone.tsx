@@ -7,6 +7,7 @@ interface Props {
 export function DropZone({ onIngested }: Props = {}) {
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const dragCounter = useRef(0);
 
   const handleFile = useCallback(async (file: File) => {
@@ -14,8 +15,12 @@ export function DropZone({ onIngested }: Props = {}) {
     if (lower.endsWith(".pdf")) {
       setLoading(true);
       const form = new FormData(); form.append("file", file);
-      await fetch("/api/match-pdf", { method: "POST", body: form });
+      const res = await fetch("/api/match-pdf", { method: "POST", body: form });
+      const json = await res.json().catch(() => ({}));
       setLoading(false);
+      // The server refuses a document it has already attached. Say so — the
+      // alternative is a file that appears to vanish.
+      if (json.alreadyLinked) setNotice(`Already attached to ${json.transferWiseId}`);
     } else if (lower.endsWith(".zip")) {
       setLoading(true);
       const form = new FormData(); form.append("file", file);
@@ -24,6 +29,12 @@ export function DropZone({ onIngested }: Props = {}) {
       onIngested?.();
     }
   }, [onIngested]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 3500);
+    return () => clearTimeout(t);
+  }, [notice]);
 
   useEffect(() => {
     const onDragEnter = (e: DragEvent) => {
@@ -57,7 +68,7 @@ export function DropZone({ onIngested }: Props = {}) {
     };
   }, [handleFile]);
 
-  if (!dragging && !loading) return null;
+  if (!dragging && !loading && !notice) return null;
 
   return (
     <div
@@ -86,7 +97,28 @@ export function DropZone({ onIngested }: Props = {}) {
           transition: "border-color 200ms cubic-bezier(0.22, 1, 0.36, 1), background 200ms cubic-bezier(0.22, 1, 0.36, 1)",
         }}
       >
-        {loading ? (
+        {notice ? (
+          <>
+            <div
+              style={{
+                width: "48px", height: "48px", display: "grid", placeItems: "center",
+                borderRadius: "12px", background: "var(--muted)", border: "1px solid var(--border)",
+              }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--foreground)" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            </div>
+            <div style={{ textAlign: "center", maxWidth: "300px" }}>
+              <div style={{ fontSize: "16px", fontWeight: 500, color: "var(--foreground)" }}>
+                Nothing to do
+              </div>
+              <div style={{ fontSize: "13px", color: "var(--muted-foreground)", marginTop: "6px", fontFamily: "var(--font-mono)" }}>
+                {notice}
+              </div>
+            </div>
+          </>
+        ) : loading ? (
           <>
             <svg
               style={{ width: "40px", height: "40px", color: "var(--foreground)", animation: "spin 1s linear infinite" }}
