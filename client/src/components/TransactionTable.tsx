@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { Transaction, PdfLink as PdfLinkType, SortConfig } from "../types";
 import { PdfLink } from "./PdfLink";
 import { CategoryPicker } from "./CategoryPicker";
@@ -71,6 +71,7 @@ export function TransactionTable({
   const [colWidths, setColWidths] = useState<Record<string, number>>(() =>
     Object.fromEntries(COLUMNS.map((c) => [c.key, c.defaultWidth]))
   );
+  const [query, setQuery] = useState("");
   const [docsWidth, setDocsWidth] = useState(DOCS_DEFAULT_WIDTH);
   const [categoryWidth, setCategoryWidth] = useState(CATEGORY_DEFAULT_WIDTH);
 
@@ -119,7 +120,52 @@ export function TransactionTable({
     document.body.style.userSelect = "none";
   };
 
+  // Search lives here rather than in the shared `filters` array on purpose: those
+  // feed the dashboard too, and a stale search term silently reshaping the KPIs
+  // and charts would be worse than useless on a bookkeeping screen.
+  const searched = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return transactions;
+    return transactions.filter((tx) =>
+      [
+        tx.description, tx.paymentReference, tx.payerName, tx.payeeName, tx.merchant,
+        tx.transferWiseId, tx.project, tx.currency,
+        tx.categories?.join(" "),
+        String(tx.amount),
+      ]
+        .filter(Boolean)
+        .some((f) => String(f).toLowerCase().includes(q)),
+    );
+  }, [transactions, query]);
+
   return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.6rem" }}>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search description, payer, merchant, reference, ID, amount…"
+          style={{
+            flex: 1, maxWidth: "28rem", padding: "0.45rem 0.7rem",
+            borderRadius: "var(--radius-lg)", border: "1px solid var(--input)",
+            background: "var(--card)", color: "var(--foreground)",
+            fontSize: "0.8125rem", outline: "none",
+          }}
+          onFocus={(e) => { e.currentTarget.style.boxShadow = "var(--ring-focus)"; }}
+          onBlur={(e) => { e.currentTarget.style.boxShadow = "none"; }}
+        />
+        {query && (
+          <span style={{ fontSize: "0.75rem", color: "var(--muted-foreground)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>
+            {searched.length} of {transactions.length}
+            <button
+              onClick={() => setQuery("")}
+              style={{ marginLeft: "0.6rem", fontSize: "0.6875rem", color: "var(--muted-foreground)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            >
+              clear
+            </button>
+          </span>
+        )}
+      </div>
     <div
       style={{
         overflow: "auto",
@@ -326,7 +372,7 @@ export function TransactionTable({
             </tr>
           </thead>
         <tbody>
-          {transactions.map((tx, i) => {
+          {searched.map((tx, i) => {
             const allLinks: PdfLinkType[] = [
               ...(tx.invoiceLinks ?? []).map((l) => ({ ...l, linkType: "Expenses" as const })),
               ...(tx.remittanceLinks ?? []).map((l) => ({ ...l, linkType: "Sales" as const })),
@@ -485,6 +531,7 @@ export function TransactionTable({
           })}
         </tbody>
       </table>
+    </div>
     </div>
   );
 }
