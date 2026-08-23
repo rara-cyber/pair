@@ -1,5 +1,8 @@
 import { readFileSync } from "fs";
+import { createHash } from "crypto";
 import { PDFParse } from "pdf-parse";
+import { ocrPdf } from "./ocr";
+import { getCachedOcr, putCachedOcr } from "./db";
 
 export interface PdfData {
   amounts: number[];
@@ -51,8 +54,16 @@ function extractAmounts(text: string): number[] {
 
       // Detect European format: 1.234,56 or 34,37
       if (raw.includes(",") && (!raw.includes(".") || raw.lastIndexOf(",") > raw.lastIndexOf("."))) {
-        // European: dots are thousands, comma is decimal
-        val = parseFloat(raw.replace(/\./g, "").replace(",", "."));
+        // ...unless exactly three digits follow the last comma. A decimal comma
+        // takes two — "34,37", "1.234,56" — so "30,000" is a US thousands
+        // separator, not thirty. Read the European way it became 30, turning a
+        // $30,000 invoice into a €30 one.
+        if (raw.length - raw.lastIndexOf(",") - 1 === 3) {
+          val = parseFloat(raw.replace(/[.,]/g, ""));
+        } else {
+          // European: dots are thousands, comma is decimal
+          val = parseFloat(raw.replace(/\./g, "").replace(",", "."));
+        }
       } else {
         // US format: commas are thousands, dot is decimal
         val = parseFloat(raw.replace(/,/g, ""));
@@ -117,6 +128,12 @@ function extractDates(text: string): string[] {
   return Array.from(dates);
 }
 
+/**
+ * Below this, a PDF has no usable text layer — it is a scan. A handful of
+ * stray glyphs from page furniture is not a document we can match on.
+ */
+const MIN_TEXT = 20;
+
 export async function extractPdfData(filePathOrBuffer: string | Buffer): Promise<PdfData> {
   const buf = typeof filePathOrBuffer === "string"
     ? readFileSync(filePathOrBuffer)
@@ -124,7 +141,24 @@ export async function extractPdfData(filePathOrBuffer: string | Buffer): Promise
   const parser = new PDFParse({ data: buf });
   const data = await parser.getText();
   await parser.destroy();
-  const text = data.text;
+  let text = data.text;
+
+  // Only scans reach the OCR path — 2 of 490 documents here — so the common
+  // case never pays for it. The result is cached against the file's content
+  // hash because extractPdfData runs on every /unmatched-pdfs request, and a
+  // 20-second OCR pass per request would make that endpoint unusable.
+  if (text.trim().length < MIN_TEXT && typeof filePathOrBuffer === "string") {
+    const hash = createHash("sha1").update(buf).digest("hex");
+    const cached = getCachedOcr(hash);
+    if (cached !== null) {
+      text = cached;
+    } else {
+      const ocr = ocrPdf(filePathOrBuffer);
+      putCachedOcr(hash, ocr);
+      if (ocr) console.log(`[ocr] read ${ocr.length} chars from ${filePathOrBuffer}`);
+      text = ocr;
+    }
+  }
 
   return {
     amounts: extractAmounts(text),

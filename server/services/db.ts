@@ -21,6 +21,15 @@ function createTables() {
       PRIMARY KEY (filename, type)
     );
 
+    -- OCR output for PDFs with no text layer. Keyed on a hash of the file's
+    -- BYTES, not its path: a document moves between document-dump/,
+    -- documents/ and document-unmatched/ over its life, and a path key would
+    -- re-run a 20-second OCR pass on every move.
+    CREATE TABLE IF NOT EXISTS ocr_cache (
+      hash TEXT PRIMARY KEY,
+      text TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS enrichments (
       transferWiseId   TEXT PRIMARY KEY,
       payerName        TEXT,
@@ -152,6 +161,18 @@ export interface EnrichmentRow {
   payeeName: string | null;
   paymentReference: string | null;
   merchant: string | null;
+}
+
+const stmtGetOcr = db.prepare<[string], { text: string }>("SELECT text FROM ocr_cache WHERE hash = ?");
+const stmtPutOcr = db.prepare("INSERT OR REPLACE INTO ocr_cache (hash, text) VALUES (?, ?)");
+
+export function getCachedOcr(hash: string): string | null {
+  return stmtGetOcr.get(hash)?.text ?? null;
+}
+
+/** Empty text is cached too — a failed OCR should not be retried on every scan. */
+export function putCachedOcr(hash: string, text: string): void {
+  stmtPutOcr.run(hash, text);
 }
 
 const stmtInsertEnrichment = db.prepare<EnrichmentRow>(`
