@@ -59,16 +59,37 @@ export async function callLlm(prompt: string, maxTokens = 64): Promise<string> {
   return json.choices?.[0]?.message?.content?.trim() ?? "none";
 }
 
+/** Does any amount extracted from the document equal this transaction's value? */
+function amountMatches(link: EnrichedPdfLink, tx: Transaction): boolean {
+  if (!link.amounts.length) return false;
+  // A card payment abroad settles in the account currency but the invoice is in
+  // the merchant's, so compare the foreign-currency leg too — a CN¥522.41
+  // invoice pairs with a -76.79 USD charge via exchangeToAmount.
+  const foreign = parseFloat(tx.exchangeToAmount);
+  return link.amounts.some(
+    (a) => Math.abs(a - Math.abs(tx.amount)) < 0.02 || (!isNaN(foreign) && Math.abs(a - Math.abs(foreign)) < 0.02),
+  );
+}
+
 // If link.month is empty (no date in PDF), return all transactions as candidates
 function getCandidates(link: EnrichedPdfLink, transactions: Transaction[]): Transaction[] {
-  if (!link.month) return transactions;
-  const [year, month] = link.month.split("-").map(Number);
-  const from = new Date(year, month - 2, 1);
-  const to = new Date(year, month, 31);
-  return transactions.filter((tx) => {
-    const d = new Date(tx.date);
-    return d >= from && d <= to;
-  });
+  let candidates = transactions;
+  if (link.month) {
+    const [year, month] = link.month.split("-").map(Number);
+    const from = new Date(year, month - 2, 1);
+    const to = new Date(year, month, 31);
+    candidates = transactions.filter((tx) => {
+      const d = new Date(tx.date);
+      return d >= from && d <= to;
+    });
+  }
+
+  // Narrow by amount when the document gave us one. The date window alone can
+  // leave 130+ candidates for a 400-character invoice — a needle in a haystack
+  // the model was demonstrably failing to find. Only ever a narrowing: if no
+  // amount lines up, fall back to the full window rather than returning nothing.
+  const byAmount = candidates.filter((tx) => amountMatches(link, tx));
+  return byAmount.length > 0 ? byAmount : candidates;
 }
 
 function formatTx(tx: Transaction): string {
@@ -96,6 +117,7 @@ async function matchOneLink(
 Rules:
 - For remittance advices (Amazon royalty payments): match on the PAYMENT DATE and AMOUNT PAID (after withholding, not the gross invoice amount). The payment date is labelled "Payment date:" in the document. The bank transaction may arrive 1–5 business days after that date — allow this tolerance.
 - For invoices: match on invoice amount and invoice date. Allow up to 3 days tolerance on the date.
+- A card payment abroad settles in the account currency, so the invoice currency and the transaction Amount often differ. The original amount is in the transaction's Desc, e.g. "Card transaction of 522.41 CNY". When the currencies differ, match on that original amount, not on the settled Amount.
 - The document email/sent date is NOT the payment date — ignore it for matching.
 - If there is a clear amount and date match, return the transaction ID. Otherwise reply "none".
 
@@ -284,6 +306,18 @@ export async function aiMatchTransactions(
       console.error(`AI match failed for ${link.filename}:`, err);
     }
   }
+
+  // Most payments arrive as an invoice AND a receipt with identical amounts and
+  // dates. Only one can attach (one document per transaction), so whichever is
+  // processed first wins — and directory order was deciding that, leaving
+  // receipts linked where an invoice existed. Invoices first, deterministically.
+  const documentRank = (filename: string): number => {
+    const f = filename.toLowerCase();
+    if (f.includes("invoice")) return 0;
+    if (f.includes("receipt")) return 2;
+    return 1;
+  };
+  allPending.sort((a, b) => documentRank(a.filename) - documentRank(b.filename) || a.filename.localeCompare(b.filename));
 
   for (const link of allPending) await processLink(link);
 

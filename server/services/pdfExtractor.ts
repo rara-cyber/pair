@@ -21,10 +21,13 @@ function extractAmounts(text: string): number[] {
   // Match patterns like $58.28, €30.50, 34.37 EUR, 61.29 USD, 13,55 USD
   // Also: $1,234.56 and €1.234,56 (European format)
   const patterns = [
-    // $123.45 or €123.45 or £123.45 (with optional thousands separators)
-    /[$€£]\s?([\d,]+\.?\d*)/g,
-    // 123.45 USD/EUR/GBP or 123,45 USD/EUR/GBP
-    /([\d.,]+)\s*(?:USD|EUR|GBP|CZK)/g,
+    // $123.45, €123.45, £123.45, ¥123.45 (also matches the ¥ inside "CN¥123.45")
+    /[$€£¥]\s?([\d,]+\.?\d*)/g,
+    // 123.45 USD / 123,45 EUR / 522.41 CNY …
+    // The account holds USD, EUR, GBP and CNY; the rest are currencies suppliers
+    // have actually invoiced in. A missing code means the document extracts no
+    // amounts at all, which is how a CN¥522.41 invoice became unmatchable.
+    /([\d.,]+)\s*(?:USD|EUR|GBP|CZK|CNY|RMB|CHF|CAD|AUD|SGD|INR|THB|JPY|PLN|SEK|NOK|DKK|HUF)\b/g,
   ];
 
   for (const pattern of patterns) {
@@ -48,7 +51,10 @@ function extractAmounts(text: string): number[] {
     }
   }
 
-  return Array.from(amounts);
+  // Largest first: on a multi-line invoice the total is the biggest figure,
+  // and callers that peek at amounts[0] want the total, not the first line item.
+  // (An Apify payout invoice starts with a $952.42 line and totals $1,418.53.)
+  return Array.from(amounts).sort((a, b) => b - a);
 }
 
 function extractDates(text: string): string[] {
