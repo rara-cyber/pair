@@ -72,6 +72,7 @@ export function TransactionTable({
     Object.fromEntries(COLUMNS.map((c) => [c.key, c.defaultWidth]))
   );
   const [query, setQuery] = useState("");
+  const [focused, setFocused] = useState(false);
   const [docsWidth, setDocsWidth] = useState(DOCS_DEFAULT_WIDTH);
   const [categoryWidth, setCategoryWidth] = useState(CATEGORY_DEFAULT_WIDTH);
 
@@ -139,27 +140,72 @@ export function TransactionTable({
   }, [transactions, query]);
 
   return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.6rem" }}>
+    // One card: the search is the table's header, not a floating field above it.
+    // overflow:hidden lets the scroll area's top edge meet the header cleanly at
+    // the rounded corners.
+    <div
+      style={{
+        // Sits flush under the filter bar, whose bottom border already draws the
+        // line between them — a top border here would double it. Square top
+        // corners for the same reason: this reads as one continuous surface.
+        borderBottom: "1px solid var(--border)",
+        borderRadius: "0 0 12px 12px",
+        background: "var(--card)",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          display: "flex", alignItems: "center", gap: "0.6rem",
+          padding: "0 14px", height: "44px",
+          borderBottom: "1px solid var(--border)",
+        }}
+      >
+        <svg
+          width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke={focused || query ? "var(--foreground)" : "var(--muted-foreground)"}
+          strokeWidth="2" strokeLinecap="round"
+          style={{ flexShrink: 0, transition: "stroke 140ms ease" }}
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-3.5-3.5" />
+        </svg>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           placeholder="Search description, payer, merchant, reference, ID, amount…"
           style={{
-            flex: 1, maxWidth: "28rem", padding: "0.45rem 0.7rem",
-            borderRadius: "var(--radius-lg)", border: "1px solid var(--input)",
-            background: "var(--card)", color: "var(--foreground)",
-            fontSize: "0.8125rem", outline: "none",
+            // Borderless and transparent: the card already provides the frame,
+            // and a second border here fights the table's own edge.
+            flex: 1, minWidth: 0, background: "transparent", border: "none",
+            outline: "none", padding: 0, height: "100%",
+            color: "var(--foreground)", fontSize: "0.8125rem",
+            fontFamily: "var(--font-sans)",
           }}
-          onFocus={(e) => { e.currentTarget.style.boxShadow = "var(--ring-focus)"; }}
-          onBlur={(e) => { e.currentTarget.style.boxShadow = "none"; }}
         />
         {query && (
-          <span style={{ fontSize: "0.75rem", color: "var(--muted-foreground)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>
-            {searched.length} of {transactions.length}
+          <span
+            style={{
+              display: "inline-flex", alignItems: "center", gap: "0.6rem",
+              fontSize: "0.6875rem", color: "var(--muted-foreground)",
+              fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums",
+              whiteSpace: "nowrap", flexShrink: 0,
+            }}
+          >
+            {/* Matches the uppercase tracked treatment of the column headers below. */}
+            <span style={{ textTransform: "uppercase", letterSpacing: "var(--tracking-wide)" }}>
+              {searched.length} / {transactions.length}
+            </span>
             <button
               onClick={() => setQuery("")}
-              style={{ marginLeft: "0.6rem", fontSize: "0.6875rem", color: "var(--muted-foreground)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+              aria-label="Clear search"
+              style={{
+                background: "none", border: "none", cursor: "pointer", padding: 0,
+                color: "var(--muted-foreground)", fontSize: "0.6875rem",
+                fontFamily: "var(--font-sans)",
+              }}
             >
               clear
             </button>
@@ -169,10 +215,8 @@ export function TransactionTable({
     <div
       style={{
         overflow: "auto",
-        maxHeight: "calc(100vh - 8rem)",
-        border: "1px solid var(--border)",
-        borderRadius: "12px",
-        background: "var(--card)",
+        // The card owns the border now; the scroll area sits flush inside it.
+        maxHeight: "calc(100vh - 8rem - 44px)",
       }}
     >
         <table
