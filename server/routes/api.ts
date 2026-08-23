@@ -70,6 +70,32 @@ function refreshCachedFromCsvs() {
   };
 }
 
+/**
+ * Move everything in document-unmatched back into document-dump so the matcher
+ * reconsiders it.
+ *
+ * A PDF is only ever matched against the transactions that existed when it was
+ * processed, and nothing retries it afterwards — so a document that arrives
+ * before its transaction stays unmatched forever. That is exactly what happened
+ * to the Apify payout invoices: they were processed before the PayPal
+ * transactions were pulled. Called whenever new transactions land.
+ */
+function requeueUnmatched(): number {
+  const unmatchedDir = join(DATA_DIR, "document-unmatched");
+  const dumpDir = join(DATA_DIR, "document-dump");
+  if (!existsSync(unmatchedDir)) return 0;
+  let moved = 0;
+  for (const f of readdirSync(unmatchedDir)) {
+    if (!f.toLowerCase().endsWith(".pdf")) continue;
+    try {
+      renameSync(join(unmatchedDir, f), join(dumpDir, f));
+      moved++;
+    } catch { /* leave it; a later run will pick it up */ }
+  }
+  if (moved > 0) console.log(`[requeue] ${moved} unmatched PDFs back into the dump`);
+  return moved;
+}
+
 async function loadData(forceRematch = false, categorizeForce = false) {
   const transactions = loadAllTransactions();
 
@@ -169,6 +195,7 @@ router.post("/sync-paypal", async (_req: Request, res: Response) => {
   try {
     const rows = await syncPaypalTransactions();
     saveApiTransactions("paypal", rows);
+    requeueUnmatched(); // new transactions may match documents that failed before
     refreshCachedFromCsvs(); // reflect immediately; matching follows below
     if (!loading) loading = loadData().finally(() => { loading = null; });
     res.json({ synced: rows.length, lastSyncedAt: lastSyncedAt("paypal"), count: countApiTransactions("paypal") });
@@ -256,6 +283,7 @@ router.post("/ingest-zip", upload.single("file"), (req: Request, res: Response) 
   if (added === 0) { res.status(400).json({ error: "No CSV files found in the archive" }); return; }
 
   // Reflect the new month immediately (preserving current matches/categories)…
+  requeueUnmatched(); // new statement rows may match documents that failed before
   refreshCachedFromCsvs();
   // …then re-run matching/categorization for the newly-added transactions in the background.
   const triggerLoad = () => {
