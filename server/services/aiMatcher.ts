@@ -60,7 +60,7 @@ export async function callLlm(prompt: string, maxTokens = 64): Promise<string> {
 }
 
 /** Does any amount extracted from the document equal this transaction's value? */
-function amountMatches(link: EnrichedPdfLink, tx: Transaction): boolean {
+export function amountMatches(link: Pick<EnrichedPdfLink, "amounts">, tx: Transaction): boolean {
   if (!link.amounts.length) return false;
   // A card payment abroad settles in the account currency but the invoice is in
   // the merchant's, so compare the foreign-currency leg too — a CN¥522.41
@@ -90,6 +90,46 @@ function getCandidates(link: EnrichedPdfLink, transactions: Transaction[]): Tran
   // amount lines up, fall back to the full window rather than returning nothing.
   const byAmount = candidates.filter((tx) => amountMatches(link, tx));
   return byAmount.length > 0 ? byAmount : candidates;
+}
+
+export type BlockReason = "zero-value" | "already-documented" | "no-transaction";
+
+/**
+ * Why this document is a dead end, or undefined if it can still be matched.
+ *
+ * When a document's amount lines up with nothing, getCandidates hands the model
+ * the entire date window and it reliably answers "none". That is most of what
+ * sits in document-unmatched/, and every requeue would otherwise re-ask the
+ * same doomed question about all of it, one paid API call at a time.
+ *
+ * The three dead ends are not the same thing, and only one of them is
+ * temporary:
+ *
+ * - `zero-value` — every figure on it is zero. A free-tier invoice reading
+ *   "$0.00 USD due" evidences no payment, so no transaction will ever
+ *   correspond to it, today or after any future import.
+ * - `already-documented` — its amount belongs to a transaction that already has
+ *   a document. Only one document attaches per transaction, so this is the
+ *   receipt half of a pair whose invoice already won.
+ * - `no-transaction` — its amount is on no transaction at all. Usually the
+ *   invoice simply arrived before the statement carrying its payment, and this
+ *   is the one an import can fix. It is what the retry button is for.
+ *
+ * A document with no extracted amount and no zero on it is NOT a dead end: the
+ * extractor may simply have failed, and the model can still match on invoice
+ * number, reference or merchant. Letting those through is the difference
+ * between a filter and a shredder.
+ */
+export function blockReason(
+  link: Pick<EnrichedPdfLink, "amounts" | "zeroValue">,
+  undocumented: Transaction[],
+  documented: Transaction[],
+): BlockReason | undefined {
+  if (link.zeroValue) return "zero-value";
+  if (link.amounts.length === 0) return undefined;
+  if (undocumented.some((tx) => amountMatches(link, tx))) return undefined;
+  if (documented.some((tx) => amountMatches(link, tx))) return "already-documented";
+  return "no-transaction";
 }
 
 function formatTx(tx: Transaction): string {
@@ -247,14 +287,32 @@ export async function aiMatchTransactions(
 
   let processedCount = stored.length;
   let matchedCount = 0;
+  let skippedCount = 0;
 
   const txById = new Map(transactions.map((tx) => [tx.transferWiseId, tx]));
 
+  function moveToUnmatched(link: EnrichedPdfLink, reason: string) {
+    mkdirSync(unmatchedDir, { recursive: true });
+    renameSync(link.filePath, join(unmatchedDir, link.filename));
+    console.log(`[unmatched] ${link.filename} → document-unmatched/ (${reason})`);
+    updateProgress({ processed: ++processedCount });
+  }
+
   async function processLink(link: EnrichedPdfLink) {
     updateProgress({ current: link.filename });
-    const candidates = getCandidates(link, transactions).filter(
-      (tx) => docMap.get(tx.transferWiseId) === null
-    );
+    const inWindow = getCandidates(link, transactions);
+    const candidates = inWindow.filter((tx) => docMap.get(tx.transferWiseId) === null);
+    const documented = inWindow.filter((tx) => docMap.get(tx.transferWiseId) !== null);
+
+    // A dead end the rules can see for themselves. Answer here for free rather
+    // than paying the model to tell us "none".
+    const blocked = blockReason(link, candidates, documented);
+    if (blocked) {
+      moveToUnmatched(link, blocked);
+      skippedCount++;
+      return;
+    }
+
     try {
       const matchedId = await matchOneLink(link, candidates);
       if (matchedId && docMap.get(matchedId) === null) {
@@ -295,11 +353,7 @@ export async function aiMatchTransactions(
           }
         }
       } else {
-        // Move to unmatched
-        mkdirSync(unmatchedDir, { recursive: true });
-        renameSync(link.filePath, join(unmatchedDir, link.filename));
-        console.log(`[unmatched] ${link.filename} → document-unmatched/`);
-        updateProgress({ processed: ++processedCount });
+        moveToUnmatched(link, "model found no match");
       }
     } catch (err) {
       updateProgress({ processed: ++processedCount });
@@ -321,6 +375,7 @@ export async function aiMatchTransactions(
 
   for (const link of allPending) await processLink(link);
 
+  console.log(`AI matcher: ${matchedCount} matched, ${skippedCount} skipped without an API call (nothing they could attach to)`);
   finishProgress();
 
   return transactions.map((tx) => {

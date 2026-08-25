@@ -7,6 +7,7 @@ export interface EnrichedPdfLink extends PdfLink {
   amounts: number[];
   dates: string[];
   text: string;
+  zeroValue: boolean; // every figure on the document is zero — it records no payment
   filePath: string; // absolute path to the file in dump
 }
 
@@ -40,11 +41,13 @@ export async function indexAllPdfs(baseDir: string): Promise<PdfIndex> {
     let amounts: number[] = [];
     let dates: string[] = [];
     let text = "";
+    let zeroValue = false;
     try {
       const pdfData = await extractPdfData(filePath);
       amounts = pdfData.amounts;
       dates = pdfData.dates;
       text = pdfData.text;
+      zeroValue = pdfData.zeroValue;
     } catch {
       // continue without content
     }
@@ -52,7 +55,7 @@ export async function indexAllPdfs(baseDir: string): Promise<PdfIndex> {
     // Derive month (YYYY-MM) from first extracted date; empty string if none found
     const month = dates.length > 0 ? dates[0].substring(0, 7) : "";
 
-    allLinks.push({ filename: file, month, url: "", amounts, dates, text, filePath });
+    allLinks.push({ filename: file, month, url: "", amounts, dates, text, zeroValue, filePath });
   }
 
   console.log(`[dump] found ${allLinks.length} PDFs to process`);

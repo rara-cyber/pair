@@ -6,7 +6,8 @@
     "dev:server": "tsx watch server/index.ts",
     "dev:client": "cd client && npm run dev",
     "build": "cd client && npm run build",
-    "archive": "tsx server/scripts/export-archive.ts"
+    "archive": "tsx server/scripts/export-archive.ts",
+    "check": "tsx server/scripts/check-matchable.ts && tsx client/src/lib/click.check.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",

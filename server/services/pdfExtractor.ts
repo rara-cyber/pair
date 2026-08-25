@@ -8,6 +8,13 @@ export interface PdfData {
   amounts: number[];
   dates: string[]; // YYYY-MM-DD
   text: string;
+  /**
+   * Every currency figure on this document is zero, so it records no payment
+   * and no bank transaction can ever correspond to it — a free-tier invoice
+   * reading "$0.00 USD due". Distinct from an empty `amounts`, which only says
+   * the extractor found nothing and may simply have failed.
+   */
+  zeroValue: boolean;
 }
 
 const MONTH_MAP: Record<string, string> = {
@@ -24,8 +31,9 @@ const MONTH_MAP: Record<string, string> = {
 // a CN¥522.41 invoice became unmatchable. Add codes here, not to a pattern.
 const CURRENCY_CODES = "USD|EUR|GBP|CZK|CNY|RMB|CHF|CAD|AUD|SGD|INR|THB|JPY|PLN|SEK|NOK|DKK|HUF";
 
-function extractAmounts(text: string): number[] {
+function extractAmounts(text: string): { amounts: number[]; sawZero: boolean } {
   const amounts = new Set<number>();
+  let sawZero = false;
 
   // Match patterns like $58.28, €30.50, 34.37 EUR, 61.29 USD, 13,55 USD
   // Also: $1,234.56 and €1.234,56 (European format)
@@ -69,8 +77,13 @@ function extractAmounts(text: string): number[] {
         val = parseFloat(raw.replace(/,/g, ""));
       }
 
-      if (!isNaN(val) && val > 0 && val < 100000) {
-        amounts.add(Math.round(val * 100) / 100);
+      if (!isNaN(val) && val >= 0 && val < 100000) {
+        // A zero is still not an amount to match a payment against, so it never
+        // joins the set. It is recorded separately because it is the only thing
+        // that separates "the extractor found nothing" from "this document is
+        // genuinely for nothing" — and those two deserve opposite treatment.
+        if (val === 0) sawZero = true;
+        else amounts.add(Math.round(val * 100) / 100);
       }
     }
   }
@@ -78,7 +91,7 @@ function extractAmounts(text: string): number[] {
   // Largest first: on a multi-line invoice the total is the biggest figure,
   // and callers that peek at amounts[0] want the total, not the first line item.
   // (An Apify payout invoice starts with a $952.42 line and totals $1,418.53.)
-  return Array.from(amounts).sort((a, b) => b - a);
+  return { amounts: Array.from(amounts).sort((a, b) => b - a), sawZero };
 }
 
 function extractDates(text: string): string[] {
@@ -160,8 +173,11 @@ export async function extractPdfData(filePathOrBuffer: string | Buffer): Promise
     }
   }
 
+  const { amounts, sawZero } = extractAmounts(text);
   return {
-    amounts: extractAmounts(text),
+    amounts,
+    // Figures were found and every one of them was zero.
+    zeroValue: amounts.length === 0 && sawZero,
     dates: extractDates(text),
     text: text.substring(0, 3000),
   };

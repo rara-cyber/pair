@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { activePresetKey, labelForKey, nextRangeKey, rangeForKey } from "../lib/dateRanges";
+import { playClick } from "../lib/click";
 
 interface Props {
   dateRange: { from: string | null; to: string | null };
@@ -54,6 +55,12 @@ export function MonthRangeSlider({ dateRange, onChange, months = 12 }: Props) {
   const emit = (a: number, b: number) => {
     const lo = Math.min(a, b);
     const hi = Math.max(a, b);
+    // One click per stop the selection actually crosses. A range input fires
+    // change events that map back onto the same pair of stops — once a handle
+    // is pinned at an end, or when the round-trip through dateRange resolves to
+    // where it already was — and clicking on every one of those turns a drag
+    // into a rattle.
+    if (lo !== startIdx || hi !== endIdx) playClick();
     onChange(stops[lo].from, stops[hi].to);
   };
 

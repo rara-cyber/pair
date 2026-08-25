@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync, statSync,
 import multer from "multer";
 import { parseAllCsvs } from "../services/csvParser";
 import { indexAllPdfs } from "../services/pdfIndexer";
-import { aiMatchTransactions, getModel, setModel, AVAILABLE_MODELS } from "../services/aiMatcher";
+import { aiMatchTransactions, getModel, setModel, AVAILABLE_MODELS, blockReason } from "../services/aiMatcher";
 import { deleteMatch, loadAllMatches, saveMatch, loadAllCategories, getCategoryList, addCategory, saveCategory } from "../services/db";
 import { categorizeTransactions } from "../services/categorizer";
 import { progressEmitter, currentProgress, emitMatch } from "../services/progress";
@@ -136,6 +136,24 @@ async function loadData(forceRematch = false, categorizeForce = false) {
   hasLoaded = true;
 }
 
+/**
+ * Start a matching pass, or queue one behind the pass already running.
+ *
+ * Every caller that has just changed what is on disk — a dropped PDF, a new
+ * statement, a requeue — needs exactly this, and a second copy of it would be
+ * a second place for the "already loading" rule to drift.
+ */
+function scheduleLoad() {
+  const run = () => {
+    if (!loading) {
+      const force = pendingCategorizeForce; pendingCategorizeForce = false;
+      loading = loadData(false, force).finally(() => { loading = null; });
+    }
+  };
+  if (loading) loading.finally(run);
+  else run();
+}
+
 router.get("/progress", (req: Request, res: Response) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -246,15 +264,7 @@ router.post("/match-pdf", upload.single("file"), (req: Request, res: Response) =
   const unmatchedPath = join(DATA_DIR, "document-unmatched", safeFilename);
   if (existsSync(unmatchedPath)) unlinkSync(unmatchedPath);
 
-  // Trigger matching pipeline; if already running, queue a new run after it finishes
-  const triggerLoad = () => {
-    if (!loading) {
-      const force = pendingCategorizeForce; pendingCategorizeForce = false;
-      loading = loadData(false, force).finally(() => { loading = null; });
-    }
-  };
-  if (loading) loading.finally(triggerLoad);
-  else triggerLoad();
+  scheduleLoad();
 
   res.json({ queued: true });
 });
@@ -297,14 +307,7 @@ router.post("/ingest-zip", upload.single("file"), (req: Request, res: Response) 
   requeueUnmatched(); // new statement rows may match documents that failed before
   refreshCachedFromCsvs();
   // …then re-run matching/categorization for the newly-added transactions in the background.
-  const triggerLoad = () => {
-    if (!loading) {
-      const force = pendingCategorizeForce; pendingCategorizeForce = false;
-      loading = loadData(false, force).finally(() => { loading = null; });
-    }
-  };
-  if (loading) loading.finally(triggerLoad);
-  else triggerLoad();
+  scheduleLoad();
 
   res.json({ ok: true, added, folder: folderName });
 });
@@ -389,6 +392,22 @@ router.get("/pdf/unmatched/:filename", (req: Request, res: Response) => {
   res.sendFile(filePath);
 });
 
+/**
+ * Retry everything in document-unmatched/.
+ *
+ * A document is only ever matched against the transactions that existed when
+ * it was processed, so an invoice that arrives before its Wise statement does
+ * is unmatchable at that moment — and nothing looks at it again. requeueUnmatched
+ * already runs when a statement upload or a PayPal pull brings new rows in, but
+ * transactions also arrive by other routes and the judgement of "there should
+ * be a match by now" is the user's. This is the button behind that judgement.
+ */
+router.post("/rematch-unmatched", (_req: Request, res: Response) => {
+  const requeued = requeueUnmatched();
+  if (requeued > 0) scheduleLoad();
+  res.json({ requeued });
+});
+
 // List PDFs in document-unmatched/ with extracted metadata
 router.get("/unmatched-pdfs", async (req: Request, res: Response) => {
   const unmatchedDir = join(DATA_DIR, "document-unmatched");
@@ -396,6 +415,16 @@ router.get("/unmatched-pdfs", async (req: Request, res: Response) => {
     res.json({ pdfs: [] });
     return;
   }
+
+  // Which of these could still land somewhere? Same rule the matcher skips on,
+  // so the card and the run cannot disagree about what is a dead end. Before
+  // the first load there is nothing to compare against, so a document is
+  // reported matchable rather than falsely written off.
+  const txs = cachedData?.transactions ?? [];
+  const documented = txs.filter((t) => t.invoiceLinks?.length || t.remittanceLinks?.length);
+  const undocumented = txs.filter((t) => !t.invoiceLinks?.length && !t.remittanceLinks?.length);
+  const canJudge = hasLoaded && txs.length > 0;
+
   const files = readdirSync(unmatchedDir)
     .filter((f) => f.toLowerCase().endsWith(".pdf"))
     .map((f) => ({ name: f, mtime: statSync(join(unmatchedDir, f)).mtimeMs }))
@@ -405,7 +434,15 @@ router.get("/unmatched-pdfs", async (req: Request, res: Response) => {
     files.map(async (filename) => {
       const filePath = join(unmatchedDir, filename);
       try {
-        const { text, dates, amounts } = await extractPdfData(filePath);
+        const { text, dates, amounts, zeroValue } = await extractPdfData(filePath);
+        // A zero-value document is certain without knowing any transaction, so
+        // it is reported even before the first load has finished; the other two
+        // reasons depend on what exists to match against.
+        const blocked = zeroValue
+          ? ("zero-value" as const)
+          : canJudge
+            ? blockReason({ amounts, zeroValue }, undocumented, documented)
+            : undefined;
         // The whole extracted text, not an 800-char head: the manual-match
         // modal searches this, and the invoice number or payer name routinely
         // sits past the opening block of boilerplate. extractPdfData already
@@ -418,10 +455,11 @@ router.get("/unmatched-pdfs", async (req: Request, res: Response) => {
           hasText: text.trim().length >= 20,
           dates,
           amounts,
+          blocked,
           previewUrl: `/api/pdf/unmatched/${encodeURIComponent(filename)}`,
         };
       } catch {
-        return { filename, text: "", hasText: false, dates: [], amounts: [], previewUrl: `/api/pdf/unmatched/${encodeURIComponent(filename)}` };
+        return { filename, text: "", hasText: false, dates: [], amounts: [], blocked: undefined, previewUrl: `/api/pdf/unmatched/${encodeURIComponent(filename)}` };
       }
     })
   );
@@ -617,15 +655,7 @@ router.post("/categorize", (req: Request, res: Response) => {
   const { force } = req.body as { force?: boolean };
   if (force) pendingCategorizeForce = true;
 
-  // Trigger a load; if already running, queue a new run after it finishes
-  const triggerLoad = () => {
-    if (!loading) {
-      const f = pendingCategorizeForce; pendingCategorizeForce = false;
-      loading = loadData(false, f).finally(() => { loading = null; });
-    }
-  };
-  if (loading) loading.finally(triggerLoad);
-  else triggerLoad();
+  scheduleLoad();
 
   res.json({ queued: true });
 });
