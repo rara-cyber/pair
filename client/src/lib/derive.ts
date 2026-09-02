@@ -99,6 +99,23 @@ export function monthlySeries(txns: Transaction[], base: string, rates: FxRates 
     .map(([key, v]) => ({ key, label: monthLabel(key), income: v.income, expenses: v.expenses, net: v.income + v.expenses }));
 }
 
+// Money moving between accounts we own is neither revenue nor cost, and both
+// shapes of it were being counted:
+//   - a sweep from our own PayPal into Wise — the same money the PayPal ingest
+//     already recorded when the customer paid (€11,500 on 2026-08-25, which is
+//     why net for 2026 read €11.7k above the live balance);
+//   - a Wise currency conversion, whose two legs read as a cost in one balance
+//     and income in the other, inflating both gross figures.
+// A card payment abroad also carries exchangeFrom/exchangeTo, so the conversion
+// test is Wise's own "Converted X to Y" wording, never those fields alone.
+export function isInternalTransfer(t: Transaction): boolean {
+  const description = (t.description ?? "").trim().toLowerCase();
+  if (description.startsWith("converted ")) return true;
+  // Only a credit: a payment *to* PayPal would be a real cost.
+  if (t.amount <= 0 || t.transferWiseId.startsWith("PAYPAL")) return false;
+  return `${description} ${(t.payerName ?? "").toLowerCase()}`.includes("paypal");
+}
+
 export interface KpiData { value: string; delta: { value: string; positive: boolean } | null; sub: string; }
 
 export function kpisFor(txns: Transaction[], base: string, rates: FxRates | null): { income: KpiData; expenses: KpiData; net: KpiData; period: string } {

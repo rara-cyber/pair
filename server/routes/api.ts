@@ -12,10 +12,19 @@ import { extractPdfData } from "../services/pdfExtractor";
 import { getBalances } from "../services/balances";
 import { syncPaypalTransactions } from "../services/paypalTransactions";
 import { assignProjects } from "../services/projects";
-import { saveApiTransactions, loadApiTransactions, getProjects, saveProject, deleteProject, setProjectOverride, lastSyncedAt, countApiTransactions } from "../services/db";
+import { saveApiTransactions, loadApiTransactions, getProjects, saveProject, deleteProject, setProjectOverride, lastSyncedAt, countApiTransactions, saveSimulated, loadSimulated, deleteSimulated } from "../services/db";
 import { readdirSync } from "fs";
 import AdmZip from "adm-zip";
 import type { Transaction, PdfLink } from "../services/csvParser";
+
+/** Every Transaction field, empty — a simulated row fills in only what it has. */
+const EMPTY_TRANSACTION = {
+  transferWiseId: "", date: "", dateTime: "", amount: 0, currency: "", description: "",
+  paymentReference: "", runningBalance: 0, exchangeFrom: "", exchangeTo: "", exchangeRate: "",
+  payerName: "", payeeName: "", payeeAccountNumber: "", merchant: "", cardLastFourDigits: "",
+  cardHolderFullName: "", attachment: "", note: "", totalFees: 0, exchangeToAmount: "",
+  transactionType: "", transactionDetailsType: "", invoiceLinks: [], remittanceLinks: [],
+} satisfies Transaction;
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
@@ -236,7 +245,55 @@ router.get("/transactions", async (req: Request, res: Response) => {
   if (!hasLoaded) {
     try { await loading; } catch { /* serve whatever cachedData holds */ }
   }
-  res.json(cachedData);
+  // Merged here rather than in loadData(): simulated rows must never reach the
+  // matcher, the categorizer or the archive export. `stats` stays as it is —
+  // it counts document coverage, and an invented payment has no document.
+  const simulated = loadSimulated<Transaction>();
+  res.json(
+    simulated.length && cachedData
+      ? { ...cachedData, transactions: [...simulated, ...cachedData.transactions].sort((a, b) => b.date.localeCompare(a.date)) }
+      : cachedData,
+  );
+});
+
+/**
+ * Simulated incoming payments — "what if this invoice lands?".
+ *
+ * They are shown everywhere the real rows are, so the KPIs and charts answer
+ * that question, and they are excluded from every export by construction: the
+ * archive script reads the CSVs and api_transactions, neither of which they
+ * are in.
+ */
+router.get("/simulated", (_req: Request, res: Response) => {
+  res.json({ simulated: loadSimulated<Transaction>() });
+});
+
+router.post("/simulated", (req: Request, res: Response) => {
+  const { date, amount, currency, payerName, description, project } = req.body ?? {};
+  const value = Number(amount);
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || !Number.isFinite(value) || value <= 0) {
+    res.status(400).json({ error: "date (YYYY-MM-DD) and a positive amount are required" });
+    return;
+  }
+  const row = {
+    ...EMPTY_TRANSACTION,
+    transferWiseId: `SIM-${Date.now()}`,
+    date: String(date),
+    dateTime: `${date}T00:00:00`,
+    amount: value,
+    currency: String(currency || "EUR").toUpperCase(),
+    description: String(description || "Simulated incoming payment"),
+    payerName: String(payerName || ""),
+    transactionType: "CREDIT",
+    simulated: true as const,
+    ...(project ? { project: String(project) } : {}),
+  };
+  saveSimulated(row);
+  res.json({ simulated: row });
+});
+
+router.delete("/simulated/:transferWiseId", (req: Request, res: Response) => {
+  res.json({ deleted: deleteSimulated(req.params.transferWiseId) });
 });
 
 router.post("/match-pdf", upload.single("file"), (req: Request, res: Response) => {

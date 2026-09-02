@@ -12,6 +12,8 @@ interface Props {
   ratesLoading: boolean;
   ratesError: boolean;
   onCurrencyChange: (c: string) => void;
+  tax: { on: boolean; rate: number };
+  onTaxChange: (next: { on: boolean; rate: number }) => void;
   onProjectsChanged?: () => void;
   onSynced?: () => void;
 }
@@ -28,7 +30,7 @@ function SettingRow({ label, desc, children }: { label: string; desc: string; ch
   );
 }
 
-export function Settings({ baseCurrency, currencies, ratesLoading, ratesError, onCurrencyChange, onProjectsChanged, onSynced }: Props) {
+export function Settings({ baseCurrency, currencies, ratesLoading, ratesError, onCurrencyChange, tax, onTaxChange, onProjectsChanged, onSynced }: Props) {
   return (
     <div style={{ maxWidth: "var(--container-max)", margin: "0 auto", padding: "40px 24px 80px" }}>
       <header style={{ marginBottom: "28px" }}>
@@ -47,6 +49,34 @@ export function Settings({ baseCurrency, currencies, ratesLoading, ratesError, o
           <Card style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
             <SettingRow label="Base currency" desc="Currency for KPI totals and charts">
               <CurrencyPicker value={baseCurrency} currencies={currencies} loading={ratesLoading} error={ratesError} onChange={onCurrencyChange} />
+            </SettingRow>
+            <div style={{ height: "1px", background: "var(--border)" }} />
+            <SettingRow label="Tax on net" desc="Deducted from the Net KPI only — income and expenses stay gross">
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={tax.rate}
+                  disabled={!tax.on}
+                  onChange={(e) => onTaxChange({ ...tax, rate: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                  style={{
+                    width: "4rem", height: "2rem", padding: "0 0.5rem", fontSize: "0.75rem",
+                    fontFamily: "var(--font-mono)", textAlign: "right",
+                    color: tax.on ? "var(--foreground)" : "var(--muted-foreground)",
+                    background: "var(--card)", border: "1px solid var(--input)",
+                    borderRadius: "var(--radius-lg)", outline: "none",
+                  }}
+                />
+                <span style={{ fontSize: "0.75rem", color: "var(--muted-foreground)" }}>%</span>
+                <input
+                  type="checkbox"
+                  checked={tax.on}
+                  onChange={(e) => onTaxChange({ ...tax, on: e.target.checked })}
+                  aria-label="Apply tax to net"
+                  style={{ cursor: "pointer", accentColor: "var(--foreground)", width: "1rem", height: "1rem" }}
+                />
+              </div>
             </SettingRow>
             <div style={{ height: "1px", background: "var(--border)" }} />
             <SettingRow label="AI model" desc="Model used for document matching">

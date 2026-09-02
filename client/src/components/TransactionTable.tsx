@@ -4,7 +4,11 @@ import { PdfLink } from "./PdfLink";
 import { CategoryPicker } from "./CategoryPicker";
 import { ProjectPicker } from "./ProjectPicker";
 import { CURRENCY_SYMBOLS } from "../hooks/useFxRates";
+import { isInternalTransfer } from "../lib/derive";
+import { SimulatedPayments } from "./SimulatedPayments";
 import { Badge } from "./ui/Badge";
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "./ui/Dialog";
+import { Button } from "./ui/Button";
 
 type LinkFilter = "all" | "filled" | "empty";
 
@@ -23,6 +27,8 @@ interface Props {
   onAddCategory: (name: string) => void;
   projects: string[];
   onProjectChange: (transferWiseId: string, project: string | null) => void;
+  onBulkProjectChange: (transferWiseIds: string[], project: string | null) => void;
+  onSimulatedChanged: () => void;
   onAddProject: (name: string) => void;
 }
 
@@ -36,6 +42,10 @@ const COLUMNS: { key: keyof Transaction; label: string; align?: string; defaultW
   { key: "payerName",         label: "Payer Name",   defaultWidth: 112 },
   { key: "project",           label: "Project",      defaultWidth: 132 },
 ];
+
+// ponytail: the header row is 14px padding + a 13px line + 14px. Hard-coded so
+// the bulk row can stick right under it without measuring the DOM every render.
+const HEADER_H = 41;
 
 const DOCS_DEFAULT_WIDTH = 128;
 const CATEGORY_DEFAULT_WIDTH = 144;
@@ -66,6 +76,8 @@ export function TransactionTable({
   onAddCategory,
   projects,
   onProjectChange,
+  onBulkProjectChange,
+  onSimulatedChanged,
   onAddProject,
 }: Props) {
   const [colWidths, setColWidths] = useState<Record<string, number>>(() =>
@@ -75,6 +87,14 @@ export function TransactionTable({
   const [focused, setFocused] = useState(false);
   const [docsWidth, setDocsWidth] = useState(DOCS_DEFAULT_WIDTH);
   const [categoryWidth, setCategoryWidth] = useState(CATEGORY_DEFAULT_WIDTH);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Anchor for shift-click, which is what makes selecting a run of rows bearable.
+  const lastPickedRef = useRef<number | null>(null);
+  // A bulk edit is confirmed before it fires: it rewrites rows you may have
+  // scrolled past, and there is no undo.
+  const [pendingBulk, setPendingBulk] = useState<
+    { kind: "project"; value: string | null } | { kind: "category"; value: string } | null
+  >(null);
 
   // Refs for the active drag
   const dragRef = useRef<{
@@ -138,6 +158,60 @@ export function TransactionTable({
         .some((f) => String(f).toLowerCase().includes(q)),
     );
   }, [transactions, query]);
+
+  // Derived, never synced: a row that scrolls out of the search results simply
+  // stops counting, so "apply" can never touch a row you cannot see.
+  const selectedRows = searched.filter((tx) => selected.has(tx.transferWiseId));
+  const allSelected = searched.length > 0 && selectedRows.length === searched.length;
+
+  const toggleRow = (index: number, shiftKey: boolean) => {
+    const id = searched[index].transferWiseId;
+    const anchorIndex = lastPickedRef.current;
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (shiftKey && anchorIndex !== null) {
+        const [from, to] = anchorIndex < index ? [anchorIndex, index] : [index, anchorIndex];
+        const turningOn = !next.has(id);
+        for (let i = from; i <= to; i++) {
+          const rowId = searched[i].transferWiseId;
+          if (turningOn) next.add(rowId); else next.delete(rowId);
+        }
+      } else if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    lastPickedRef.current = index;
+  };
+
+  // A category is added, never replaced — a row can hold three, and blowing away
+  // the other two to write one is not what "apply to selection" means. Rows that
+  // already carry it, or are full, are not touched.
+  const bulkTargets =
+    pendingBulk?.kind === "category"
+      ? selectedRows.filter((tx) => {
+          const current = tx.categories ?? [];
+          return !current.includes(pendingBulk.value) && current.length < 3;
+        })
+      : selectedRows;
+
+  const bulkCell: React.CSSProperties = {
+    position: "sticky", top: HEADER_H, zIndex: 1, background: "var(--card)",
+    borderBottom: "1px solid var(--border)", padding: "6px 14px",
+    textAlign: "left", fontWeight: 400,
+  };
+
+  const applyBulk = () => {
+    if (!pendingBulk) return;
+    if (pendingBulk.kind === "project") {
+      onBulkProjectChange(bulkTargets.map((tx) => tx.transferWiseId), pendingBulk.value);
+    } else {
+      for (const tx of bulkTargets) {
+        onCategoryChange(tx.transferWiseId, [...(tx.categories ?? []), pendingBulk.value]);
+      }
+    }
+    setSelected(new Set());
+    setPendingBulk(null);
+  };
 
   return (
     // One card: the search is the table's header, not a floating field above it.
@@ -211,6 +285,7 @@ export function TransactionTable({
             </button>
           </span>
         )}
+        <SimulatedPayments projects={projects} onChanged={onSimulatedChanged} />
       </div>
     <div
       style={{
@@ -231,6 +306,21 @@ export function TransactionTable({
             <tr>
               {/* Status indicator column */}
               <th style={{ width: 4, padding: 0 }} />
+
+              <th
+                style={{
+                  width: 32, padding: "14px 0 14px 10px", position: "sticky", top: 0, zIndex: 1,
+                  background: "var(--card)", borderBottom: "1px solid var(--border)",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={() => setSelected(allSelected ? new Set() : new Set(searched.map((tx) => tx.transferWiseId)))}
+                  aria-label="Select all rows"
+                  style={{ cursor: "pointer", accentColor: "var(--foreground)" }}
+                />
+              </th>
 
               {COLUMNS.map((col) => (
                 <th
@@ -414,6 +504,63 @@ export function TransactionTable({
                 </span>
               </th>
             </tr>
+
+            {/* Bulk edit, aligned to the columns it writes: the Project cell
+                holds a project picker, the Category cell a category picker.
+                Same components as the rows, so there is one project menu in the
+                app and one category menu, not four. */}
+            {selectedRows.length > 0 && (
+              <tr>
+                <th style={{ ...bulkCell, width: 4, padding: 0 }} />
+                <th style={{ ...bulkCell, width: 32 }} />
+                {COLUMNS.map((col) => (
+                  <th key={col.key} style={{ ...bulkCell, width: colWidths[col.key], maxWidth: colWidths[col.key] }}>
+                    {col.key === "date" && (
+                      <span
+                        style={{
+                          fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 500,
+                          letterSpacing: "0.16em", textTransform: "uppercase",
+                          color: "var(--foreground)", whiteSpace: "nowrap",
+                        }}
+                      >
+                        {selectedRows.length} selected
+                      </span>
+                    )}
+                    {col.key === "transferWiseId" && (
+                      <button
+                        onClick={() => setSelected(new Set())}
+                        style={{
+                          background: "none", border: "none", padding: 0, cursor: "pointer",
+                          fontFamily: "var(--font-sans)", fontSize: "0.6875rem", color: "var(--muted-foreground)",
+                        }}
+                      >
+                        clear
+                      </button>
+                    )}
+                    {col.key === "project" && (
+                      <ProjectPicker
+                        projects={projects}
+                        onChange={(project) => setPendingBulk({ kind: "project", value: project })}
+                        onAddProject={onAddProject}
+                        maxWidth={colWidths["project"] - 28}
+                      />
+                    )}
+                  </th>
+                ))}
+                <th style={{ ...bulkCell, width: categoryWidth, maxWidth: categoryWidth }}>
+                  <CategoryPicker
+                    categories={categories}
+                    onChange={(picked) => {
+                      const value = picked[picked.length - 1];
+                      if (value) setPendingBulk({ kind: "category", value });
+                    }}
+                    onAddCategory={onAddCategory}
+                    maxWidth={categoryWidth - 28}
+                  />
+                </th>
+                <th style={{ ...bulkCell, width: docsWidth }} />
+              </tr>
+            )}
           </thead>
         <tbody>
           {searched.map((tx, i) => {
@@ -462,6 +609,16 @@ export function TransactionTable({
                     }}
                   />
                 </td>
+                <td style={{ width: 32, padding: "12px 0 12px 10px", borderBottom: "1px solid var(--border)" }}>
+                  <input
+                    type="checkbox"
+                    checked={selected.has(tx.transferWiseId)}
+                    onChange={() => {}}
+                    onClick={(e) => toggleRow(i, e.shiftKey)}
+                    aria-label={`Select ${tx.transferWiseId}`}
+                    style={{ cursor: "pointer", accentColor: "var(--foreground)" }}
+                  />
+                </td>
                 {COLUMNS.map((col) => {
                   const value = tx[col.key];
                   let display: string | React.ReactNode;
@@ -491,6 +648,25 @@ export function TransactionTable({
                     );
                   } else {
                     display = String(value ?? "");
+                  }
+                  // A sweep between our own accounts stays in the table but is
+                  // not income; without a mark, a €11,500 credit missing from
+                  // the KPIs reads as a bug.
+                  if (col.key === "description" && tx.simulated) {
+                    display = (
+                      <>
+                        <Badge style={{ marginRight: "6px", color: "var(--positive-fg)", borderColor: "var(--positive-fg)" }}>simulated</Badge>
+                        {String(value ?? "")}
+                      </>
+                    );
+                  }
+                  if (col.key === "description" && isInternalTransfer(tx)) {
+                    display = (
+                      <>
+                        <Badge style={{ marginRight: "6px", color: "var(--muted-foreground)" }}>internal</Badge>
+                        {String(value ?? "")}
+                      </>
+                    );
                   }
                   // The Project cell is editable: a manual pick overrides the
                   // rule for this row only.
@@ -562,7 +738,7 @@ export function TransactionTable({
                     borderBottom: "1px solid var(--border)",
                   }}
                 >
-                  {hasDoc ? (
+                  {tx.simulated ? null : hasDoc ? (
                     <PdfLink
                       links={allLinks}
                       onDelete={(filename, type) => onDeleteLink(tx.transferWiseId, filename, type)}
@@ -598,6 +774,32 @@ export function TransactionTable({
         </tbody>
       </table>
     </div>
+
+      <Dialog open={pendingBulk !== null} onClose={() => setPendingBulk(null)} width="420px">
+        {pendingBulk && (
+          <>
+            <DialogHeader>
+              <DialogTitle>{pendingBulk.kind === "project" ? "Set project" : "Add category"}</DialogTitle>
+            </DialogHeader>
+            <DialogDescription>
+              {pendingBulk.kind === "project"
+                ? pendingBulk.value
+                  ? <>“{pendingBulk.value}” on <b>{bulkTargets.length}</b> transactions. Replaces the project they have now.</>
+                  : <>Clears the project on <b>{bulkTargets.length}</b> transactions, so the rules apply again.</>
+                : <>“{pendingBulk.value}” added to <b>{bulkTargets.length}</b> transactions. Their existing categories stay.</>}
+              {pendingBulk.kind === "category" && bulkTargets.length < selectedRows.length && (
+                <div style={{ marginTop: "0.5rem" }}>
+                  {selectedRows.length - bulkTargets.length} skipped — already have it, or are at the three-category limit.
+                </div>
+              )}
+            </DialogDescription>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPendingBulk(null)}>Cancel</Button>
+              <Button onClick={applyBulk} disabled={bulkTargets.length === 0}>Apply</Button>
+            </DialogFooter>
+          </>
+        )}
+      </Dialog>
     </div>
   );
 }

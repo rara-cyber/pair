@@ -37,6 +37,8 @@ export interface Transaction {
   invoiceLinks?: PdfLink[];
   remittanceLinks?: PdfLink[];
   categories?: string[];
+  /** A what-if row: counted in the UI, never in an export. */
+  simulated?: boolean;
 }
 
 export interface CategoryEvent {

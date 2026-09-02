@@ -71,6 +71,16 @@ function createTables() {
     -- from disk on every load, but API rows have no local file to re-read, so
     -- they must persist. Stored as whole JSON: the shape is Transaction, and a
     -- column-per-field table would need migrating every time that type changes.
+    -- Simulated incoming payments: "what if this invoice lands?". Deliberately
+    -- its own table and never merged into loadData(), so the matcher, the
+    -- categorizer and the yearly archive export cannot see them — those read
+    -- CSVs + api_transactions. The UI merges them at response time.
+    CREATE TABLE IF NOT EXISTS simulated_transactions (
+      transferWiseId TEXT PRIMARY KEY,
+      json           TEXT NOT NULL,
+      createdAt      TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS api_transactions (
       transferWiseId TEXT PRIMARY KEY,
       source         TEXT NOT NULL,
@@ -361,6 +371,26 @@ export function saveApiTransactions(source: string, rows: { transferWiseId: stri
 
 export function loadApiTransactions<T>(): T[] {
   return stmtAllApiTx.all().map((r) => JSON.parse(r.json) as T);
+}
+
+const stmtInsertSimulated = db.prepare(
+  "INSERT INTO simulated_transactions (transferWiseId, json, createdAt) VALUES (?, ?, ?)",
+);
+const stmtAllSimulated = db.prepare<[], { json: string }>(
+  "SELECT json FROM simulated_transactions ORDER BY createdAt",
+);
+const stmtDeleteSimulated = db.prepare("DELETE FROM simulated_transactions WHERE transferWiseId = ?");
+
+export function saveSimulated(row: { transferWiseId: string }): void {
+  stmtInsertSimulated.run(row.transferWiseId, JSON.stringify(row), new Date().toISOString());
+}
+
+export function loadSimulated<T>(): T[] {
+  return stmtAllSimulated.all().map((r) => JSON.parse(r.json) as T);
+}
+
+export function deleteSimulated(transferWiseId: string): boolean {
+  return stmtDeleteSimulated.run(transferWiseId).changes > 0;
 }
 
 /** Newest syncedAt for a source, or null if it has never been synced. */

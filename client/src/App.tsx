@@ -15,7 +15,7 @@ import { Select } from "./components/ui/Select";
 import { Dashboard } from "./components/Dashboard";
 import { FilterTabs } from "./components/ui/FilterTabs";
 import { Settings } from "./components/Settings";
-import { statsFor } from "./lib/derive";
+import { statsFor, isInternalTransfer } from "./lib/derive";
 import type { Transaction } from "./types";
 
 
@@ -48,6 +48,17 @@ function App() {
   const [manualMatchTx, setManualMatchTx] = useState<Transaction | null>(null);
   const [highlightedTxIds, setHighlightedTxIds] = useState<Set<string>>(new Set());
   const [baseCurrency, setBaseCurrency] = useState("EUR");
+  // Total vs per-month for the three money tiles. Toggled from the Net tile —
+  // Income and Expenses keep their direction filter on click.
+  const [perMonth, setPerMonth] = useState(false);
+  const [tax, setTax] = useState<{ on: boolean; rate: number }>(() => {
+    try { return JSON.parse(localStorage.getItem("pair.tax") ?? "") as { on: boolean; rate: number }; }
+    catch { return { on: false, rate: 22 }; }
+  });
+  const updateTax = useCallback((next: { on: boolean; rate: number }) => {
+    setTax(next);
+    localStorage.setItem("pair.tax", JSON.stringify(next));
+  }, []);
   const [view, setView] = useState<View>("overview");
   const [categories, setCategories] = useState<string[]>([]);
   const [projects, setProjects] = useState<string[]>([]);
@@ -133,6 +144,19 @@ function App() {
     refetch();
   }, [refetch]);
 
+  // ponytail: N parallel POSTs against the existing per-row route, one refetch
+  // at the end. A /bulk endpoint only if a selection ever gets big enough to feel it.
+  const setTransactionsProject = useCallback(async (transferWiseIds: string[], project: string | null) => {
+    await Promise.all(transferWiseIds.map((id) =>
+      fetch(`/api/transaction/${encodeURIComponent(id)}/project`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project }),
+      }),
+    ));
+    refetch();
+  }, [refetch]);
+
   const scrollToTransaction = useCallback((txId: string) => {
     setTimeout(() => {
       const row = document.querySelector(`[data-tx-id="${txId}"]`);
@@ -166,14 +190,42 @@ function App() {
   // Header counts must describe what is on screen, not the whole dataset —
   // otherwise "473 TX" sits beside an income figure covering only the selected
   // period. Derived from the filtered rows, same as income/expenses/net.
-  const viewStats = useMemo(() => statsFor(transactions), [transactions]);
+  const viewStats = useMemo(() => statsFor(transactions.filter((t) => !t.simulated)), [transactions]);
   const linked = viewStats.withInvoice + viewStats.withRemittance;
   const missing = viewStats.total - linked;
 
+  // Every money figure in the app reads from this list, never from
+  // `transactions` — the table still shows internal transfers, the KPIs and
+  // charts must not count them. One filter, so a new chart cannot forget.
+  const moneyRows = useMemo(() => transactions.filter((t) => !isInternalTransfer(t)), [transactions]);
+
   const toBase = (t: Transaction) => convertAmount(t.amount, t.currency, baseCurrency, rates);
-  const income = transactions.filter((t) => t.amount >= 0).reduce((s, t) => s + toBase(t), 0);
-  const expenses = transactions.filter((t) => t.amount < 0).reduce((s, t) => s + toBase(t), 0);
+  const income = moneyRows.filter((t) => t.amount >= 0).reduce((s, t) => s + toBase(t), 0);
+  const expenses = moneyRows.filter((t) => t.amount < 0).reduce((s, t) => s + toBase(t), 0);
   const net = income + expenses;
+
+  // Divide by the months the *selection* spans, not the months that happen to
+  // have transactions — a quiet month is a real zero and must drag the average
+  // down. Falls back to the months present when the range is open-ended.
+  const monthsInRange = useMemo(() => {
+    const months = transactions.map((t) => t.date.slice(0, 7)).sort();
+    if (months.length === 0) return 1;
+    const { from, to } = dateRange;
+    if (!from || !to) return Math.max(1, new Set(months).size);
+    // The end is clamped to the last month with data: "This year" runs to
+    // December, and dividing eight months of income by twelve is not a monthly
+    // average, it is a forecast. A gap in the middle still counts — that is a
+    // real zero, and it should drag the average down.
+    const end = months[months.length - 1] < to.slice(0, 7) ? months[months.length - 1] : to.slice(0, 7);
+    const [fy, fm] = from.split("-").map(Number);
+    const [ty, tm] = end.split("-").map(Number);
+    return Math.max(1, (ty - fy) * 12 + (tm - fm) + 1);
+  }, [dateRange, transactions]);
+
+  // Tax only ever reduces a profit; taxing a loss would invent a refund.
+  const netAfterTax = tax.on && net > 0 ? net * (1 - tax.rate / 100) : net;
+  const divide = (v: number) => (perMonth ? v / monthsInRange : v);
+  const perMonthSuffix = perMonth ? " / mo" : "";
 
   // Unique currencies present in the loaded data for the picker
   const availableCurrencies = useMemo(() => {
@@ -325,8 +377,8 @@ function App() {
                   onClick={() => addFilter("_direction", "income")}
                   style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', border: 'none', background: 'none', color: 'inherit' }}
                 >
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(income, baseCurrency)}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px' }}>Income</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(divide(income), baseCurrency)}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px', whiteSpace: 'nowrap' }}>{`Income${perMonthSuffix}`}</span>
                 </button>
                 <span style={{ width: '1px', height: '28px', background: 'var(--border)' }}></span>
 
@@ -334,15 +386,19 @@ function App() {
                   onClick={() => addFilter("_direction", "expense")}
                   style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', border: 'none', background: 'none', color: 'inherit' }}
                 >
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(expenses, baseCurrency)}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px' }}>Expenses</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(divide(expenses), baseCurrency)}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px', whiteSpace: 'nowrap' }}>{`Expenses${perMonthSuffix}`}</span>
                 </button>
                 <span style={{ width: '1px', height: '28px', background: 'var(--border)' }}></span>
 
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: net >= 0 ? 'var(--positive)' : 'var(--negative)', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(net, baseCurrency)}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px' }}>Net</span>
-                </div>
+                <button
+                  onClick={() => setPerMonth((v) => !v)}
+                  title={`${perMonth ? "Showing the monthly average over " + monthsInRange + " months" : "Showing the period total"} — click to switch${tax.on ? `. Net is after ${tax.rate}% tax (${fmtAmount(net, baseCurrency)} before)` : ""}`}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', border: 'none', background: 'none', color: 'inherit' }}
+                >
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px', lineHeight: 1, letterSpacing: '-0.01em', color: netAfterTax >= 0 ? 'var(--positive)' : 'var(--negative)', fontVariantNumeric: 'tabular-nums' }}>{fmtAmount(divide(netAfterTax), baseCurrency)}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginTop: '6px', whiteSpace: 'nowrap' }}>{`Net${tax.on ? " after tax" : ""}${perMonthSuffix}`}</span>
+                </button>
               </div>
             )}
 
@@ -400,7 +456,7 @@ function App() {
         )}
         {!loading && view === "overview" && (
           <Dashboard
-            transactions={transactions}
+            transactions={moneyRows}
             stats={viewStats}
             baseCurrency={baseCurrency}
             rates={rates}
@@ -429,6 +485,8 @@ function App() {
             onAddCategory={addCategory}
             projects={projects}
             onProjectChange={setTransactionProject}
+            onBulkProjectChange={setTransactionsProject}
+            onSimulatedChanged={refetch}
             onAddProject={addProject}
           />
           </div>
@@ -436,6 +494,8 @@ function App() {
         {!loading && view === "settings" && (
           <Settings
             baseCurrency={baseCurrency}
+            tax={tax}
+            onTaxChange={updateTax}
             currencies={availableCurrencies}
             ratesLoading={ratesLoading}
             ratesError={ratesError}
