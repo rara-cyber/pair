@@ -8,6 +8,8 @@ import { FilterTabs } from "./ui/FilterTabs";
 import { activePresetKey, nextRangeKey, rangeForKey, labelForKey } from "../lib/dateRanges";
 
 const RAMP = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
+// Subtler than --foreground: the net line reads as an overlay, not a fourth bar.
+const NET = "var(--muted-foreground)";
 
 type Mode = "flow" | "income" | "expenses";
 
@@ -74,7 +76,7 @@ export function CategoryStackChart({ transactions, baseCurrency, rates, dateRang
           <>
             <FlowKey color={RAMP[0]} label="In" value={fmtAbbrev(totals.income, baseCurrency)} />
             <FlowKey color={RAMP[2]} label="Out" value={fmtAbbrev(Math.abs(totals.expenses), baseCurrency)} />
-            <FlowKey color="var(--foreground)" label="Net" value={fmtAbbrev(totals.net, baseCurrency)} line />
+            <FlowKey color={NET} label="Net" value={fmtAbbrev(totals.net, baseCurrency)} line />
           </>
         ) : (
           categories.map((cat, i) => (
@@ -93,7 +95,7 @@ export function CategoryStackChart({ transactions, baseCurrency, rates, dateRang
           </div>
         ) : isFlow ? (
           <ResponsiveContainer width="100%" height={300}>
-            <ComposedChart data={flowData} margin={{ top: 8, right: 8, bottom: 0, left: 8 }} accessibilityLayer={false}>
+            <ComposedChart data={flowData} margin={{ top: 8, right: 8, bottom: 0, left: 8 }} stackOffset="sign" accessibilityLayer={false}>
               <CartesianGrid vertical={false} stroke="var(--border)" />
               <XAxis dataKey="label" {...axisProps} />
               <YAxis tickFormatter={(v) => fmtAbbrev(Number(v), baseCurrency)} width={56} {...axisProps} />
@@ -105,9 +107,10 @@ export function CategoryStackChart({ transactions, baseCurrency, rates, dateRang
               />
               {/* The waterline: above is cash in, below is cash out. */}
               <ReferenceLine y={0} stroke="var(--border)" />
-              <Bar dataKey="income" name="In" fill={RAMP[0]} radius={[2, 2, 0, 0]} />
-              <Bar dataKey="expenses" name="Out" fill={RAMP[2]} radius={[0, 0, 2, 2]} />
-              <Line type="monotone" dataKey="net" name="Net" stroke="var(--foreground)" strokeWidth={2} dot={{ r: 3 }} />
+              {/* One stack per month: money in above the waterline, out below. */}
+              <Bar dataKey="income" name="In" stackId="cur" fill={RAMP[0]} radius={[2, 2, 0, 0]} />
+              <Bar dataKey="expenses" name="Out" stackId="cur" fill={RAMP[2]} radius={[0, 0, 2, 2]} />
+              <Line type="monotone" dataKey="net" name="Net" stroke={NET} strokeWidth={2} dot={{ r: 3 }} />
             </ComposedChart>
           </ResponsiveContainer>
         ) : (
