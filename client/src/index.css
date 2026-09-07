@@ -171,3 +171,113 @@ body {
 .recharts-wrapper :focus-visible,
 .recharts-surface:focus,
 .recharts-surface:focus-visible { outline: none !important; }
+
+/* Theme toggle — ink-wash reveal from the click + sun/moon crossfade.
+   Ported from data-playground tokens.css; expects class="dark" on <html>. */
+@property --reveal-r {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) { z-index: 1; }
+::view-transition-new(root) {
+  z-index: 9999;
+  -webkit-mask-image: radial-gradient(
+    circle at var(--theme-reveal-x, 50%) var(--theme-reveal-y, 50%),
+    rgba(0, 0, 0, 1) 0,
+    rgba(0, 0, 0, 1) calc(var(--reveal-r) - 180px),
+    rgba(0, 0, 0, 0.6) calc(var(--reveal-r) - 80px),
+    rgba(0, 0, 0, 0) var(--reveal-r)
+  );
+  mask-image: radial-gradient(
+    circle at var(--theme-reveal-x, 50%) var(--theme-reveal-y, 50%),
+    rgba(0, 0, 0, 1) 0,
+    rgba(0, 0, 0, 1) calc(var(--reveal-r) - 180px),
+    rgba(0, 0, 0, 0.6) calc(var(--reveal-r) - 80px),
+    rgba(0, 0, 0, 0) var(--reveal-r)
+  );
+  animation: theme-reveal 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes theme-reveal {
+  from { --reveal-r: 0px; }
+  to { --reveal-r: 160vmax; }
+}
+
+.theme-toggle {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--foreground);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  cursor: pointer;
+  overflow: visible;
+  view-transition-name: theme-toggle;
+  transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.theme-toggle:hover { background: var(--muted); }
+.theme-toggle svg {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.55s cubic-bezier(0.34, 1.45, 0.64, 1);
+}
+.theme-toggle .icon-sun { opacity: 0; transform: rotate(-90deg) scale(0.7); }
+.theme-toggle .icon-moon { opacity: 1; transform: none; }
+html.dark .theme-toggle .icon-sun { opacity: 1; transform: none; }
+html.dark .theme-toggle .icon-moon { opacity: 0; transform: rotate(90deg) scale(0.7); }
+.theme-toggle.theme-sting::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: theme-glow 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes theme-glow {
+  from { box-shadow: 0 0 0 0 color-mix(in oklch, var(--foreground) 35%, transparent); }
+  to { box-shadow: 0 0 0 16px transparent; }
+}
+::view-transition-group(theme-toggle) {
+  z-index: 10001;
+  animation-duration: 0.55s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+::view-transition-old(theme-toggle) {
+  animation: theme-lockup-out 0.35s cubic-bezier(0.4, 0, 1, 1) both;
+}
+::view-transition-new(theme-toggle) {
+  animation: theme-lockup-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes theme-lockup-out {
+  to { opacity: 0; transform: scale(0.92) rotate(-18deg); }
+}
+@keyframes theme-lockup-in {
+  from { opacity: 0; transform: scale(0.7) rotate(28deg); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-old(theme-toggle),
+  ::view-transition-new(theme-toggle),
+  ::view-transition-group(theme-toggle) { animation: none !important; }
+  .theme-toggle,
+  .theme-toggle svg { transition: none; }
+  .theme-toggle.theme-sting::after { animation: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .filter-tabs, .filter-tabs button, .filter-tabs span { transition: none !important; }
+}
