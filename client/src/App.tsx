@@ -11,6 +11,7 @@ import { DropZone } from "./components/DropZone";
 import { ProgressBadge } from "./components/ProgressBadge";
 import { ManualMatchModal } from "./components/ManualMatchModal";
 import { ThemeToggle } from "./components/ui/ThemeToggle";
+import { Brand } from "./components/ui/Brand";
 import { Select } from "./components/ui/Select";
 import { Dashboard } from "./components/Dashboard";
 import { FilterTabs } from "./components/ui/FilterTabs";
@@ -298,7 +299,7 @@ function App() {
           <div style={{ padding: '8px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: '18px', letterSpacing: '0.02em', color: 'var(--foreground)' }}>SIÁN</span>
+                <Brand />
                 <span style={{ width: '1px', height: '18px', background: 'var(--border)' }} />
                 <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '15px', color: 'var(--foreground)' }}>Pair</span>
               </div>
@@ -316,31 +317,9 @@ function App() {
           <div style={{ height: '72px', padding: '0 24px', maxWidth: 'var(--container-max)', margin: '0 auto', display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: '16px' }}>
             {/* Left: branding + tabs */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              {/* SIÁN brand */}
-              <a href="#" style={{ display: 'inline-flex', alignItems: 'baseline', gap: '8px', textDecoration: 'none', color: 'inherit' }}>
-                <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: '20px', letterSpacing: '0.02em', color: 'var(--foreground)' }}>SIÁN</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 500, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>AGENCY</span>
-              </a>
+              <Brand />
               <span style={{ width: '1px', height: '22px', background: 'var(--border)' }}></span>
-
-              {/* Pair product */}
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{
-                  width: '24px', height: '24px',
-                  display: 'grid', placeItems: 'center',
-                  border: '1px solid var(--border)',
-                  borderRadius: '6px',
-                  background: 'var(--card)'
-                }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="4" width="7" height="12" rx="1.2" stroke="var(--muted-foreground)"/>
-                    <rect x="14" y="8" width="7" height="12" rx="1.2" stroke="var(--muted-foreground)"/>
-                    <path d="M10 9h4" stroke="var(--positive)"/>
-                    <path d="M10 13h4" stroke="var(--positive)" strokeDasharray="2 2"/>
-                  </svg>
-                </span>
-                <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '15px', letterSpacing: '0.01em', color: 'var(--foreground)' }}>Pair</span>
-              </div>
+              <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '15px', letterSpacing: '0.01em', color: 'var(--foreground)' }}>Pair</span>
 
               {/* View tabs */}
               <FilterTabs tabs={VIEW_TABS} value={view} onChange={setView} />
