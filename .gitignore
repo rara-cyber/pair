@@ -15,3 +15,8 @@ CLAUDE.md
 
 # macOS Finder metadata — noise, and it blocks rebases when it churns
 .DS_Store
+.claude/settings.json
+
+# Codex agent config — same reason as .claude/
+.codex/
+AGENTS.md
