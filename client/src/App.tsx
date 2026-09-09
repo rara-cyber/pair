@@ -300,8 +300,6 @@ function App() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                 <Brand />
-                <span style={{ width: '1px', height: '18px', background: 'var(--border)' }} />
-                <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '15px', color: 'var(--foreground)' }}>Pair</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <ThemeToggle theme={theme} toggle={toggleTheme} />
@@ -318,8 +316,6 @@ function App() {
             {/* Left: branding + tabs */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
               <Brand />
-              <span style={{ width: '1px', height: '22px', background: 'var(--border)' }}></span>
-              <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '15px', letterSpacing: '0.01em', color: 'var(--foreground)' }}>Pair</span>
 
               {/* View tabs */}
               <FilterTabs tabs={VIEW_TABS} value={view} onChange={setView} />
