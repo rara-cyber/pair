@@ -114,7 +114,10 @@ export function TransactionTable({
     } else if (dragRef.current.isDocs) {
       setDocsWidth(newWidth);
     } else {
-      setColWidths((prev) => ({ ...prev, [dragRef.current!.colKey]: newWidth }));
+      // Read the key now: the updater runs later, after a mouseup may already
+      // have nulled dragRef — reading it in there blanked the whole page.
+      const { colKey } = dragRef.current;
+      setColWidths((prev) => ({ ...prev, [colKey]: newWidth }));
     }
   }, []);
 
