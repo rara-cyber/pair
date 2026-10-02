@@ -212,20 +212,27 @@ router.get("/sync-paypal", (_req: Request, res: Response) => {
   });
 });
 
+const paypalConfigured = () => Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET);
+
 // Pull PayPal transactions, persist them, then re-run the normal load so the
 // new rows go through PDF matching and categorization like any other row.
+async function syncPaypal(): Promise<number> {
+  const rows = await syncPaypalTransactions();
+  saveApiTransactions("paypal", rows);
+  requeueUnmatched(); // new transactions may match documents that failed before
+  refreshCachedFromCsvs(); // reflect immediately; matching follows below
+  scheduleLoad();
+  return rows.length;
+}
+
 router.post("/sync-paypal", async (_req: Request, res: Response) => {
-  if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_CLIENT_SECRET) {
+  if (!paypalConfigured()) {
     res.status(400).json({ error: "PayPal credentials not configured" });
     return;
   }
   try {
-    const rows = await syncPaypalTransactions();
-    saveApiTransactions("paypal", rows);
-    requeueUnmatched(); // new transactions may match documents that failed before
-    refreshCachedFromCsvs(); // reflect immediately; matching follows below
-    if (!loading) loading = loadData().finally(() => { loading = null; });
-    res.json({ synced: rows.length, lastSyncedAt: lastSyncedAt("paypal"), count: countApiTransactions("paypal") });
+    const synced = await syncPaypal();
+    res.json({ synced, lastSyncedAt: lastSyncedAt("paypal"), count: countApiTransactions("paypal") });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     console.error("[sync-paypal]", message);
@@ -365,6 +372,14 @@ router.post("/ingest-zip", upload.single("file"), (req: Request, res: Response) 
   refreshCachedFromCsvs();
   // …then re-run matching/categorization for the newly-added transactions in the background.
   scheduleLoad();
+
+  // A Wise statement carries the PayPal → Wise sweeps, which the client hides as
+  // internal transfers on the assumption that the PayPal payment behind each one
+  // is already in. Ingesting without syncing breaks that: a sweep from after the
+  // last PayPal pull is hidden while its payment is missing, and revenue vanishes.
+  if (paypalConfigured()) {
+    syncPaypal().catch((e) => console.error("[ingest-zip] PayPal sync:", e instanceof Error ? e.message : e));
+  }
 
   res.json({ ok: true, added, folder: folderName });
 });
